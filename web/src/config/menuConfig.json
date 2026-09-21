@@ -133,9 +133,9 @@
       ]
     },
     {
-      "labelKey": "common.github",
+      "labelKey": "common.documentation",
       "path": "https://github.com/allen0039/komari_air",
-      "icon": "Github",
+      "icon": "Book",
       "newTab": true,
       "bottom": true
     },

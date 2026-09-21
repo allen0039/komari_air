@@ -8,12 +8,12 @@ func TestCheckKomariVersion(t *testing.T) {
 		wantErr    bool
 	}{
 		{"", false},
-		{"0.1.4", false},
-		{"v0.1.4", false},
-		{">=0.1.4", false},
-		{">0.1.4", true},
+		{"0.1.5", false},
+		{"v0.1.5", false},
+		{">=0.1.5", false},
+		{">0.1.5", true},
 		{"<1.0.0", false},
-		{"<=0.1.4", false},
+		{"<=0.1.5", false},
 		{">=99.0.0", true},
 		{"0.2", true}, // 0.2.0 > 0.1.0
 		{"1", true},   // 1.0.0 > 0.1.0
