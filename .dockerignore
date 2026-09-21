@@ -18,4 +18,4 @@ data
 **/*.log
 **/*.db
 **/*.sqlite*
-server/web/public/defaultTheme/dist.tar.zst
+server/web/public/defaultTheme/*

@@ -16,6 +16,7 @@ RUN go mod download
 
 COPY server/ ./
 COPY --from=web-builder /src/web/dist/ /src/web-dist/
+COPY --from=web-builder /src/web/komari-theme.json web/public/defaultTheme/komari-theme.json
 
 RUN mkdir -p web/public/defaultTheme \
     && tar -cf /tmp/komari-web.tar -C /src/web-dist . \
