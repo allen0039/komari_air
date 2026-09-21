@@ -236,8 +236,8 @@ func TestSnapshotUpdateReturnsRestartRequired(t *testing.T) {
 		},
 	}
 	lister := func(owner, repo string) ([]githubRelease, error) {
-		if owner != "komari-monitor" || repo != "komari-agent" {
-			t.Fatalf("list releases repo = %s/%s, want komari-monitor/komari-agent", owner, repo)
+		if owner != "allen0039" || repo != "komari_air" {
+			t.Fatalf("list releases repo = %s/%s, want allen0039/komari_air", owner, repo)
 		}
 		return []githubRelease{release}, nil
 	}

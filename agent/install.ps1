@@ -224,7 +224,7 @@ Uninstall-Previous
 function Get-LatestSnapshotVersion {
     param([Parameter(Mandatory = $true)][string]$AssetName)
 
-    $ApiUrl = "https://api.github.com/repos/komari-monitor/komari-agent/releases?per_page=100"
+    $ApiUrl = "https://api.github.com/repos/allen0039/komari_air/releases?per_page=100"
     $ApiUrls = @($ApiUrl)
     if ($GitHubProxy -ne "") {
         $ApiUrls = @("$GitHubProxy/$ApiUrl", $ApiUrl)
@@ -289,7 +289,7 @@ else {
         }
     }
     else {
-        $ApiUrl = "https://api.github.com/repos/komari-monitor/komari-agent/releases/latest"
+        $ApiUrl = "https://api.github.com/repos/allen0039/komari_air/releases/latest"
         try {
             Log-Step "Fetching latest release version from GitHub API..."
             $release = Invoke-RestMethod -Uri $ApiUrl -UseBasicParsing
@@ -304,7 +304,7 @@ else {
     Log-Success "Installing Komari Agent version: $versionToInstall"
 
     $BinaryName = "komari-agent-windows-$arch.exe"
-    $DownloadUrl = if ($GitHubProxy) { "$GitHubProxy/https://github.com/komari-monitor/komari-agent/releases/download/$versionToInstall/$BinaryName" } else { "https://github.com/komari-monitor/komari-agent/releases/download/$versionToInstall/$BinaryName" }
+    $DownloadUrl = if ($GitHubProxy) { "$GitHubProxy/https://github.com/allen0039/komari_air/releases/download/$versionToInstall/$BinaryName" } else { "https://github.com/allen0039/komari_air/releases/download/$versionToInstall/$BinaryName" }
 }
 
 # Download and install

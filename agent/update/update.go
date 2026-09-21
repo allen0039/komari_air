@@ -24,8 +24,8 @@ import (
 var ErrRestartRequired = errors.New("update installed; restart required")
 
 var (
-	CurrentVersion string = "0.1.2"
-	Repo           string = "komari-monitor/komari-agent"
+	CurrentVersion string = "0.1.3"
+	Repo           string = "allen0039/komari_air"
 	PanelBaseURL   string
 )
 

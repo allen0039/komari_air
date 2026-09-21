@@ -328,7 +328,7 @@ log_info "Detected OS: ${GREEN}$os_name${NC}, Architecture: ${GREEN}$arch${NC}"
 file_name="komari-agent-${os_name}-${arch}"
 
 resolve_snapshot_version() {
-    snapshot_api_url="https://api.github.com/repos/komari-monitor/komari-agent/releases?per_page=100"
+    snapshot_api_url="https://api.github.com/repos/allen0039/komari_air/releases?per_page=100"
     if [ -n "$github_proxy" ]; then
         snapshot_api_urls="${github_proxy}/${snapshot_api_url} ${snapshot_api_url}"
     else
@@ -393,9 +393,9 @@ else
     fi
 
     if [ -n "$github_proxy" ]; then
-        download_url="${github_proxy}/https://github.com/komari-monitor/komari-agent/releases/${download_path}/${file_name}"
+        download_url="${github_proxy}/https://github.com/allen0039/komari_air/releases/${download_path}/${file_name}"
     else
-        download_url="https://github.com/komari-monitor/komari-agent/releases/${download_path}/${file_name}"
+        download_url="https://github.com/allen0039/komari_air/releases/${download_path}/${file_name}"
     fi
 fi
 

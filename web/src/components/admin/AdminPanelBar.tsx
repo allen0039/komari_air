@@ -97,7 +97,9 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
 
   // 动态扩展菜单（主题 + 插件注入页面）
   const [extraMenuItems, setExtraMenuItems] = useState<ExtendedMenuItem[]>([]);
-  const [pluginMenuItems, setPluginMenuItems] = useState<ExtendedMenuItem[]>([]);
+  const [pluginMenuItems, setPluginMenuItems] = useState<ExtendedMenuItem[]>(
+    [],
+  );
 
   useEffect(() => {
     let ignore = false;
@@ -260,7 +262,7 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
     async function loadReleases() {
       try {
         const resp = await fetch(
-          "https://api.github.com/repos/komari-monitor/komari/releases?per_page=100",
+          "https://api.github.com/repos/allen0039/komari_air/releases?per_page=100",
           {
             headers: {
               Accept: "application/vnd.github+json",
@@ -320,9 +322,7 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
       return item;
     });
   }, [extraMenuItems, pluginMenuItems]);
-  const bottomStartPath = mergedBaseMenuItems.find(
-    (item) => item.bottom,
-  )?.path;
+  const bottomStartPath = mergedBaseMenuItems.find((item) => item.bottom)?.path;
 
   // 根据路径自动展开子菜单（包含动态扩展项；plugin-page 用 query 定位文件，
   // 因此子菜单匹配基于 pathname 部分）
@@ -335,8 +335,7 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
           const childPath = child.path.split("?")[0];
           return (
             location.pathname === childPath ||
-            (childPath !== "/" &&
-              location.pathname.startsWith(childPath + "/"))
+            (childPath !== "/" && location.pathname.startsWith(childPath + "/"))
           );
         });
       }
@@ -499,7 +498,12 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
                     `${versionInfo.version} (${versionInfo.hash})`)}
               </label>
             </Flex>
-            <Flex gap="3" align="center" overflowX="auto" className="km-admin-panel-controls">
+            <Flex
+              gap="3"
+              align="center"
+              overflowX="auto"
+              className="km-admin-panel-controls"
+            >
               {account && !account.logged_in && (
                 <LoginDialog
                   autoOpen={true}
@@ -571,186 +575,180 @@ const AdminPanelBar = ({ content }: AdminPanelBarProps) => {
                 className="h-full md:mt-0 mt-6"
                 style={{ width: "100%" }}
               >
-                {mergedBaseMenuItems.map(
-                  (item: ExtendedMenuItem) => {
-                    // 支持 icon 为 URL/相对路径
-                    const isOpen = openSubMenus[item.path];
-                    const renderIcon = (
-                      icon: string,
-                      labelKey: string,
-                      className?: string,
-                      active?: boolean,
-                    ) => {
-                      const link = /^(https?:\/\/|\/|\.\/|\.\.\/)/.test(icon);
-                      if (link) {
-                        return (
-                          <InlineSvgIcon
-                            src={icon}
-                            alt={t(labelKey)}
-                            style={{
-                              width: 16,
-                              height: 16,
-                              objectFit: "contain",
-                              opacity: active ? 1 : 0.7,
-                              filter: active ? "none" : "grayscale(20%)",
-                            }}
-                            className={className}
-                            loading="lazy"
-                          />
-                        );
-                      }
-                      const Cmp = iconMap[icon];
-                      if (Cmp) {
-                        return (
-                          <Cmp
-                            className={className}
-                            style={{
-                              color: active
-                                ? "var(--accent-10)"
-                                : "var(--gray11)",
-                            }}
-                          />
-                        );
-                      }
-                      // fallback: simple dot
+                {mergedBaseMenuItems.map((item: ExtendedMenuItem) => {
+                  // 支持 icon 为 URL/相对路径
+                  const isOpen = openSubMenus[item.path];
+                  const renderIcon = (
+                    icon: string,
+                    labelKey: string,
+                    className?: string,
+                    active?: boolean,
+                  ) => {
+                    const link = /^(https?:\/\/|\/|\.\/|\.\.\/)/.test(icon);
+                    if (link) {
                       return (
-                        <span
-                          className={className}
+                        <InlineSvgIcon
+                          src={icon}
+                          alt={t(labelKey)}
                           style={{
                             width: 16,
                             height: 16,
-                            display: "inline-block",
-                            borderRadius: 4,
-                            background: "var(--accent-8)",
+                            objectFit: "contain",
+                            opacity: active ? 1 : 0.7,
+                            filter: active ? "none" : "grayscale(20%)",
+                          }}
+                          className={className}
+                          loading="lazy"
+                        />
+                      );
+                    }
+                    const Cmp = iconMap[icon];
+                    if (Cmp) {
+                      return (
+                        <Cmp
+                          className={className}
+                          style={{
+                            color: active
+                              ? "var(--accent-10)"
+                              : "var(--gray11)",
                           }}
                         />
                       );
-                    };
-                    if (item.children && item.children.length) {
-                      return (
-                        <div key={item.path}>
-                          <Flex
-                            className="p-2 gap-2 border-l-[4px] border-transparent cursor-pointer hover:bg-accent-3 rounded-md"
-                            align="center"
-                            onClick={() => {
-                              //const currentlyOpen = openSubMenus[item.path];
-                              // 检查当前路径是否已经在该父菜单的子菜单中
-                              //const isCurrentlyInThisMenu = item.children?.some(
-                              //  (child) =>
-                              //    location.pathname === child.path ||
-                              //    location.pathname.startsWith(child.path)
-                              //);
-
-                              // 切换子菜单的展开状态
-                              setOpenSubMenus((prev) => ({
-                                ...prev,
-                                [item.path]: !prev[item.path],
-                              }));
-
-                              //// 只有在非展开状态且不在当前菜单组中时才导航到第一个子菜单项
-                              //if (
-                              //  !currentlyOpen &&
-                              //  !isCurrentlyInThisMenu &&
-                              //  item.children &&
-                              //  item.children.length > 0
-                              //) {
-                              //  //navigate(item.children[0].path);
-                              //  // 如果是移动端，关闭侧边栏
-                              //  if (isMobile) {
-                              //    setSidebarOpen(false);
-                              //  }
-                              //}
-                            }}
-                          >
-                            {renderIcon(
-                              item.icon,
-                              item.labelKey,
-                              "flex w-4 h-5 items-center justify-center",
-                            )}
-                            <Text
-                              className="text-base"
-                              weight="medium"
-                              style={{
-                                flex: 1,
-                              }}
-                            >
-                              {item.rawLabel || t(item.labelKey)}
-                            </Text>
-
-                            <ChevronDownIcon
-                              style={{
-                                transform: isOpen
-                                  ? "rotate(180deg)"
-                                  : "rotate(0deg)",
-                                transition: "transform 0.2s",
-                              }}
-                            />
-                          </Flex>
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={
-                              isOpen
-                                ? { height: "auto", opacity: 1 }
-                                : { height: 0, opacity: 0 }
-                            }
-                            transition={{ duration: 0.2 }}
-                            style={{ overflow: "hidden" }}
-                          >
-                            <Flex direction="column" className="ml-4 gap-1">
-                              {item.children.map((child: MenuItem) => (
-                                <SidebarItem
-                                  key={child.path}
-                                  to={child.path}
-                                  icon={renderIcon(
-                                    child.icon,
-                                    child.labelKey,
-                                    "flex w-4 h-5 items-center justify-center",
-                                  )}
-                                  children={
-                                    (child as ExtendedMenuItem).rawLabel ||
-                                    t(child.labelKey)
-                                  }
-                                  onClick={() =>
-                                    isMobile && setSidebarOpen(false)
-                                  }
-                                  newTab={child.newTab}
-                                  reloadDocument={
-                                    (child as ExtendedMenuItem).reloadDocument
-                                  }
-                                />
-                              ))}
-                            </Flex>
-                          </motion.div>
-                        </div>
-                      );
                     }
-                    const isBottomStart =
-                      item.bottom && item.path === bottomStartPath;
+                    // fallback: simple dot
                     return (
-                      <div
-                        key={item.path}
-                        style={
-                          isBottomStart
-                            ? { marginTop: "auto" }
-                            : undefined
-                        }
-                      >
-                        <SidebarItem
-                          to={item.path}
-                          icon={renderIcon(
+                      <span
+                        className={className}
+                        style={{
+                          width: 16,
+                          height: 16,
+                          display: "inline-block",
+                          borderRadius: 4,
+                          background: "var(--accent-8)",
+                        }}
+                      />
+                    );
+                  };
+                  if (item.children && item.children.length) {
+                    return (
+                      <div key={item.path}>
+                        <Flex
+                          className="p-2 gap-2 border-l-[4px] border-transparent cursor-pointer hover:bg-accent-3 rounded-md"
+                          align="center"
+                          onClick={() => {
+                            //const currentlyOpen = openSubMenus[item.path];
+                            // 检查当前路径是否已经在该父菜单的子菜单中
+                            //const isCurrentlyInThisMenu = item.children?.some(
+                            //  (child) =>
+                            //    location.pathname === child.path ||
+                            //    location.pathname.startsWith(child.path)
+                            //);
+
+                            // 切换子菜单的展开状态
+                            setOpenSubMenus((prev) => ({
+                              ...prev,
+                              [item.path]: !prev[item.path],
+                            }));
+
+                            //// 只有在非展开状态且不在当前菜单组中时才导航到第一个子菜单项
+                            //if (
+                            //  !currentlyOpen &&
+                            //  !isCurrentlyInThisMenu &&
+                            //  item.children &&
+                            //  item.children.length > 0
+                            //) {
+                            //  //navigate(item.children[0].path);
+                            //  // 如果是移动端，关闭侧边栏
+                            //  if (isMobile) {
+                            //    setSidebarOpen(false);
+                            //  }
+                            //}
+                          }}
+                        >
+                          {renderIcon(
                             item.icon,
                             item.labelKey,
                             "flex w-4 h-5 items-center justify-center",
                           )}
-                          children={item.rawLabel || t(item.labelKey)}
-                          onClick={() => isMobile && setSidebarOpen(false)}
-                          newTab={item.newTab}
-                          reloadDocument={item.reloadDocument}
-                        />
+                          <Text
+                            className="text-base"
+                            weight="medium"
+                            style={{
+                              flex: 1,
+                            }}
+                          >
+                            {item.rawLabel || t(item.labelKey)}
+                          </Text>
+
+                          <ChevronDownIcon
+                            style={{
+                              transform: isOpen
+                                ? "rotate(180deg)"
+                                : "rotate(0deg)",
+                              transition: "transform 0.2s",
+                            }}
+                          />
+                        </Flex>
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={
+                            isOpen
+                              ? { height: "auto", opacity: 1 }
+                              : { height: 0, opacity: 0 }
+                          }
+                          transition={{ duration: 0.2 }}
+                          style={{ overflow: "hidden" }}
+                        >
+                          <Flex direction="column" className="ml-4 gap-1">
+                            {item.children.map((child: MenuItem) => (
+                              <SidebarItem
+                                key={child.path}
+                                to={child.path}
+                                icon={renderIcon(
+                                  child.icon,
+                                  child.labelKey,
+                                  "flex w-4 h-5 items-center justify-center",
+                                )}
+                                children={
+                                  (child as ExtendedMenuItem).rawLabel ||
+                                  t(child.labelKey)
+                                }
+                                onClick={() =>
+                                  isMobile && setSidebarOpen(false)
+                                }
+                                newTab={child.newTab}
+                                reloadDocument={
+                                  (child as ExtendedMenuItem).reloadDocument
+                                }
+                              />
+                            ))}
+                          </Flex>
+                        </motion.div>
                       </div>
                     );
-                  },
-                )}
+                  }
+                  const isBottomStart =
+                    item.bottom && item.path === bottomStartPath;
+                  return (
+                    <div
+                      key={item.path}
+                      style={isBottomStart ? { marginTop: "auto" } : undefined}
+                    >
+                      <SidebarItem
+                        to={item.path}
+                        icon={renderIcon(
+                          item.icon,
+                          item.labelKey,
+                          "flex w-4 h-5 items-center justify-center",
+                        )}
+                        children={item.rawLabel || t(item.labelKey)}
+                        onClick={() => isMobile && setSidebarOpen(false)}
+                        newTab={item.newTab}
+                        reloadDocument={item.reloadDocument}
+                      />
+                    </div>
+                  );
+                })}
               </Flex>
             </Flex>
           </motion.div>

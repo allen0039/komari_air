@@ -16,7 +16,7 @@ export default function AboutPage() {
   const [view, setView] = useState("open_source");
   useEffect(() => {
     fetch(
-      "https://raw.githubusercontent.com/komari-monitor/komari/refs/heads/main/README.md"
+      "https://raw.githubusercontent.com/allen0039/komari_air/refs/heads/main/README.md",
     )
       .then((res) => res.text())
       .then(setMarkdown);
@@ -112,12 +112,14 @@ export default function AboutPage() {
   };
 
   const sortedLicenses = Object.entries(open_source_licenses).sort(([a], [b]) =>
-    a.localeCompare(b)
+    a.localeCompare(b),
   );
 
   return (
     <div className="km-page-admin-about km-about-content flex flex-col gap-4">
-      <h1 className="km-about-title text-2xl font-bold text-foreground">{t("common.about")}</h1>
+      <h1 className="km-about-title text-2xl font-bold text-foreground">
+        {t("common.about")}
+      </h1>
       <SegmentedControl.Root defaultValue={view} onValueChange={setView}>
         <SegmentedControl.Item value="open_source">
           {t("about.open_source_title")}
@@ -188,7 +190,7 @@ export default function AboutPage() {
                   )}
                 </div>
                 <a
-                  href="https://github.com/komari-monitor/komari/blob/main/README.md"
+                  href="https://github.com/allen0039/komari_air/blob/main/README.md"
                   target="_blank"
                   rel="noreferrer"
                   className="flex flex-row gap-2 text-sm items-center"
