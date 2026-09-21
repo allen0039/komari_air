@@ -86,7 +86,6 @@ import { SelectOrInput } from "@/components/ui/select-or-input";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import { copyText } from "@/utils/clipboard";
 
-
 const NodeDetailsPage = () => {
   return (
     <NodeDetailsProvider>
@@ -103,13 +102,15 @@ const Layout = () => {
   const filteredNodes = Array.isArray(nodeDetail)
     ? nodeDetail
         .filter((node) =>
-          node.name.toLowerCase().includes(searchTerm.toLowerCase())
+          node.name.toLowerCase().includes(searchTerm.toLowerCase()),
         )
         .sort((a, b) => a.weight - b.weight)
     : [];
 
   useEffect(() => {
-    const interval = setInterval(() => { refresh() }, 5000);
+    const interval = setInterval(() => {
+      refresh();
+    }, 5000);
     return () => clearInterval(interval);
   }, [nodeDetail]);
 
@@ -167,7 +168,7 @@ const EmptyNodesGuide = () => {
         <Text size="2" color="gray" align="right" style={{ maxWidth: "20rem" }}>
           {t(
             "admin.nodeTable.emptyGuide.description",
-            "点击右上角的“添加节点”开始，或开启自动发现批量接入服务器。"
+            "点击右上角的“添加节点”开始，或开启自动发现批量接入服务器。",
           )}
         </Text>
       </Flex>
@@ -176,7 +177,6 @@ const EmptyNodesGuide = () => {
 };
 
 type AutoDiscoveryInstallOptions = {
-  disableRemoteExec: boolean;
   disableAutoUpdate: boolean;
   ignoreUnsafeCert: boolean;
   memoryIncludeCache: boolean;
@@ -235,7 +235,6 @@ const AutoDiscoverySection = ({
   const [showOptions, setShowOptions] = React.useState(false);
   const [installOptions, setInstallOptions] =
     React.useState<AutoDiscoveryInstallOptions>({
-      disableRemoteExec: false,
       disableAutoUpdate: false,
       ignoreUnsafeCert: false,
       memoryIncludeCache: false,
@@ -288,9 +287,6 @@ const AutoDiscoverySection = ({
       return `http://${settings.script_domain.replace(/\/+$/, "")}`;
     })();
     const args: string[] = ["-e", host, "--auto-discovery", adKey];
-    if (installOptions.disableRemoteExec) {
-      args.push("--disable-remote-exec");
-    }
     if (installOptions.disableAutoUpdate) {
       args.push("--disable-auto-update");
     }
@@ -346,13 +342,13 @@ const AutoDiscoverySection = ({
     }
     if (enableInterval) {
       const intervalVal = Number.parseFloat(
-        (installOptions.interval || "").trim()
+        (installOptions.interval || "").trim(),
       );
       args.push("-i");
       args.push(
         Number.isFinite(intervalVal) && intervalVal >= 1
           ? String(intervalVal)
-          : "1"
+          : "1",
       );
     }
     if (enableMonthRotate) {
@@ -387,8 +383,7 @@ const AutoDiscoverySection = ({
         break;
       case "macos":
         finalCommand =
-          `zsh <(curl -sL ${quoteShellArg(scriptUrl)}) ` +
-          quoteShellArgs(args);
+          `zsh <(curl -sL ${quoteShellArg(scriptUrl)}) ` + quoteShellArgs(args);
         break;
       case "docker": {
         // Docker 运行时不支持安装脚本专用参数，剔除它们及其取值
@@ -458,7 +453,7 @@ const AutoDiscoverySection = ({
             <Text size="2">
               {t(
                 "admin.nodeTable.autoDiscovery.disabledDescription",
-                "开启自动发现后，无需逐台手动添加节点。只要在目标服务器上运行一条命令，Agent 就会携带密钥自动注册并上线，非常适合批量部署多台服务器。"
+                "开启自动发现后，无需逐台手动添加节点。只要在目标服务器上运行一条命令，Agent 就会携带密钥自动注册并上线，非常适合批量部署多台服务器。",
               )}
             </Text>
             <Link to="/admin/settings/general">
@@ -466,7 +461,7 @@ const AutoDiscoverySection = ({
                 <Settings size={14} />
                 {t(
                   "admin.nodeTable.autoDiscovery.goToSettings",
-                  "前往“常规设置”开启自动发现"
+                  "前往“常规设置”开启自动发现",
                 )}
               </Button>
             </Link>
@@ -488,7 +483,7 @@ const AutoDiscoverySection = ({
         <Text size="2" color="gray">
           {t(
             "admin.nodeTable.autoDiscovery.enabledDescription",
-            "在目标服务器上运行下面的命令，Agent 将自动注册并上线，无需手动添加节点。"
+            "在目标服务器上运行下面的命令，Agent 将自动注册并上线，无需手动添加节点。",
           )}
         </Text>
       </Flex>
@@ -519,28 +514,6 @@ const AutoDiscoverySection = ({
       {showOptions && (
         <Flex direction="column" gap="2">
           <div className="grid grid-cols-2 gap-2">
-            <Flex gap="2" align="center">
-              <Checkbox
-                checked={installOptions.disableRemoteExec}
-                onCheckedChange={(checked) =>
-                  setInstallOptions((prev) => ({
-                    ...prev,
-                    disableRemoteExec: Boolean(checked),
-                  }))
-                }
-              />
-              <label
-                className="text-sm font-normal cursor-pointer"
-                onClick={() =>
-                  setInstallOptions((prev) => ({
-                    ...prev,
-                    disableRemoteExec: !prev.disableRemoteExec,
-                  }))
-                }
-              >
-                {t("admin.nodeTable.disableRemoteExec")}
-              </label>
-            </Flex>
             <Flex gap="2" align="center">
               <Checkbox
                 checked={installOptions.disableAutoUpdate}
@@ -760,7 +733,7 @@ const AutoDiscoverySection = ({
               <TextField.Root
                 placeholder={t(
                   "admin.nodeTable.install_dir_placeholder",
-                  "安装目录，为空则使用默认目录(/opt/komari-agent)"
+                  "安装目录，为空则使用默认目录(/opt/komari-agent)",
                 )}
                 value={installOptions.dir}
                 onChange={(e) =>
@@ -798,7 +771,7 @@ const AutoDiscoverySection = ({
               <TextField.Root
                 placeholder={t(
                   "admin.nodeTable.serviceName_placeholder",
-                  "服务名称，为空则使用默认名称(komari-agent)"
+                  "服务名称，为空则使用默认名称(komari-agent)",
                 )}
                 value={installOptions.serviceName}
                 onChange={(e) =>
@@ -1078,7 +1051,7 @@ const Header = ({
       toast.error(
         `${t("common.error", "Error")}: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }`,
       );
     } finally {
       setLoading(false);
@@ -1306,7 +1279,7 @@ const NodeTable = ({
         tolerance: 5,
       },
     }),
-    useSensor(KeyboardSensor, {})
+    useSensor(KeyboardSensor, {}),
   );
   // 添加 localNodes 状态，实现即时 UI 更新
   const [localNodes, setLocalNodes] = useState<NodeDetail[]>(nodes);
@@ -1341,10 +1314,13 @@ const NodeTable = ({
     }
 
     try {
-      const orderData = reorderedNodes.reduce((acc, node, index) => {
-        acc[node.uuid] = index;
-        return acc;
-      }, {} as Record<string, number>);
+      const orderData = reorderedNodes.reduce(
+        (acc, node, index) => {
+          acc[node.uuid] = index;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
 
       await fetch("/api/admin/client/order", {
         method: "POST",
@@ -1366,7 +1342,7 @@ const NodeTable = ({
     setSelectedNodes(
       checked
         ? [...selectedNodes, uuid]
-        : selectedNodes.filter((id) => id !== uuid)
+        : selectedNodes.filter((id) => id !== uuid),
     );
   };
   return (
@@ -1478,9 +1454,15 @@ function AgentConfigButton({ node }: { node: NodeDetail }) {
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
-  const [state, setState] = React.useState<ManagedAgentConfigState | null>(null);
-  const [form, setForm] = React.useState<ManagedAgentConfig>(defaultManagedAgentConfig);
-  const [enabledFields, setEnabledFields] = React.useState<Record<ManagedAgentConfigField, boolean>>({
+  const [state, setState] = React.useState<ManagedAgentConfigState | null>(
+    null,
+  );
+  const [form, setForm] = React.useState<ManagedAgentConfig>(
+    defaultManagedAgentConfig,
+  );
+  const [enabledFields, setEnabledFields] = React.useState<
+    Record<ManagedAgentConfigField, boolean>
+  >({
     interval: true,
     monthRotate: false,
     includeNics: false,
@@ -1493,7 +1475,7 @@ function AgentConfigButton({ node }: { node: NodeDetail }) {
     try {
       const next = await call<{ uuid: string }, ManagedAgentConfigState>(
         "admin:getAgentConfig",
-        { uuid: node.uuid }
+        { uuid: node.uuid },
       );
       setState(next);
       const base = next.has_desired
@@ -1522,25 +1504,43 @@ function AgentConfigButton({ node }: { node: NodeDetail }) {
   }, [open, load]);
 
   const save = async () => {
-    if (!Number.isFinite(form.interval) || form.interval < 1 || form.interval > 3600) {
-      toast.error(t("admin.agentConfig.invalidInterval", "采集间隔必须为 1–3600 秒"));
+    if (
+      !Number.isFinite(form.interval) ||
+      form.interval < 1 ||
+      form.interval > 3600
+    ) {
+      toast.error(
+        t("admin.agentConfig.invalidInterval", "采集间隔必须为 1–3600 秒"),
+      );
       return;
     }
-    if (!Number.isInteger(form.month_rotate) || form.month_rotate < 0 || form.month_rotate > 31) {
-      toast.error(t("admin.agentConfig.invalidMonthRotate", "网络统计月重置日必须为 0–31"));
+    if (
+      !Number.isInteger(form.month_rotate) ||
+      form.month_rotate < 0 ||
+      form.month_rotate > 31
+    ) {
+      toast.error(
+        t(
+          "admin.agentConfig.invalidMonthRotate",
+          "网络统计月重置日必须为 0–31",
+        ),
+      );
       return;
     }
     setSaving(true);
     try {
       const next = await call<any, ManagedAgentConfigState>(
         "admin:updateAgentConfig",
-        { uuid: node.uuid, config: form }
+        { uuid: node.uuid, config: form },
       );
       setState(next);
       toast.success(
         next.online
           ? t("admin.agentConfig.savedSyncing", "配置已保存，正在同步到 Agent")
-          : t("admin.agentConfig.savedOffline", "配置已保存，将在 Agent 上线后自动同步")
+          : t(
+              "admin.agentConfig.savedOffline",
+              "配置已保存，将在 Agent 上线后自动同步",
+            ),
       );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
@@ -1553,7 +1553,7 @@ function AgentConfigButton({ node }: { node: NodeDetail }) {
     try {
       const next = await call<any, ManagedAgentConfigState>(
         "admin:retryAgentConfigSync",
-        { uuid: node.uuid }
+        { uuid: node.uuid },
       );
       setState(next);
       toast.success(t("admin.agentConfig.retrySent", "已重新发起同步"));
@@ -1565,15 +1565,20 @@ function AgentConfigButton({ node }: { node: NodeDetail }) {
   const statusText = (() => {
     if (!state) return "";
     if (!state.supported && state.online) {
-      return t("admin.agentConfig.unsupported", "当前 Agent 尚未支持远程配置，请先更新 Agent");
+      return t(
+        "admin.agentConfig.unsupported",
+        "当前 Agent 尚未支持远程配置，请先更新 Agent",
+      );
     }
-    if (state.status === "error") return t("admin.agentConfig.syncError", "同步失败");
+    if (state.status === "error")
+      return t("admin.agentConfig.syncError", "同步失败");
     if (state.desired_revision > state.reported_revision) {
       return state.online
         ? t("admin.agentConfig.syncing", "同步中")
         : t("admin.agentConfig.pendingOffline", "等待 Agent 上线同步");
     }
-    if (state.status === "synced") return t("admin.agentConfig.synced", "已同步");
+    if (state.status === "synced")
+      return t("admin.agentConfig.synced", "已同步");
     return t("admin.agentConfig.unknown", "尚未同步");
   })();
 
@@ -1589,19 +1594,34 @@ function AgentConfigButton({ node }: { node: NodeDetail }) {
         </IconButton>
       </Dialog.Trigger>
       <Dialog.Content style={{ maxWidth: 860 }}>
-        <Dialog.Title>{t("admin.agentConfig.title", "Agent 设置")} · {node.name}</Dialog.Title>
+        <Dialog.Title>
+          {t("admin.agentConfig.title", "Agent 设置")} · {node.name}
+        </Dialog.Title>
         {loading ? (
           <Loading text="" />
         ) : (
           <Flex direction="column" gap="4">
             {state && (
-              <Callout.Root color={state.status === "error" ? "red" : state.desired_revision > state.reported_revision ? "amber" : "green"}>
+              <Callout.Root
+                color={
+                  state.status === "error"
+                    ? "red"
+                    : state.desired_revision > state.reported_revision
+                      ? "amber"
+                      : "green"
+                }
+              >
                 <Callout.Text>
                   {statusText}
                   {" · "}
-                  {t("admin.agentConfig.targetRevision", "面板配置修订")} {state.desired_revision}
+                  {t("admin.agentConfig.targetRevision", "面板配置修订")}{" "}
+                  {state.desired_revision}
                   {" / "}
-                  {t("admin.agentConfig.reportedRevision", "Agent 已应用修订")} {state.reported_revision}
+                  {t(
+                    "admin.agentConfig.reportedRevision",
+                    "Agent 已应用修订",
+                  )}{" "}
+                  {state.reported_revision}
                   {state.last_error ? ` · ${state.last_error}` : ""}
                 </Callout.Text>
               </Callout.Root>
@@ -1616,12 +1636,21 @@ function AgentConfigButton({ node }: { node: NodeDetail }) {
                   <Checkbox
                     checked={form.disable_auto_update}
                     onCheckedChange={(checked) =>
-                      setForm((prev) => ({ ...prev, disable_auto_update: Boolean(checked) }))
+                      setForm((prev) => ({
+                        ...prev,
+                        disable_auto_update: Boolean(checked),
+                      }))
                     }
                   />
-                  <label className="text-sm font-normal cursor-pointer" onClick={() =>
-                    setForm((prev) => ({ ...prev, disable_auto_update: !prev.disable_auto_update }))
-                  }>
+                  <label
+                    className="text-sm font-normal cursor-pointer"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        disable_auto_update: !prev.disable_auto_update,
+                      }))
+                    }
+                  >
                     {t("admin.nodeTable.disableAutoUpdate", "禁用自动更新")}
                   </label>
                 </Flex>
@@ -1629,27 +1658,50 @@ function AgentConfigButton({ node }: { node: NodeDetail }) {
                   <Checkbox
                     checked={form.memory_include_cache}
                     onCheckedChange={(checked) =>
-                      setForm((prev) => ({ ...prev, memory_include_cache: Boolean(checked) }))
+                      setForm((prev) => ({
+                        ...prev,
+                        memory_include_cache: Boolean(checked),
+                      }))
                     }
                   />
-                  <label className="text-sm font-normal cursor-pointer" onClick={() =>
-                    setForm((prev) => ({ ...prev, memory_include_cache: !prev.memory_include_cache }))
-                  }>
+                  <label
+                    className="text-sm font-normal cursor-pointer"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        memory_include_cache: !prev.memory_include_cache,
+                      }))
+                    }
+                  >
                     {t("admin.nodeTable.memoryIncludeCache", "包含缓冲区内存")}
                   </label>
-                  <Tips size="14">{t("admin.nodeTable.memoryModeAvailable_tip")}</Tips>
+                  <Tips size="14">
+                    {t("admin.nodeTable.memoryModeAvailable_tip")}
+                  </Tips>
                 </Flex>
                 <Flex gap="2" align="center">
                   <Checkbox
                     checked={form.get_ip_addr_from_nic}
                     onCheckedChange={(checked) =>
-                      setForm((prev) => ({ ...prev, get_ip_addr_from_nic: Boolean(checked) }))
+                      setForm((prev) => ({
+                        ...prev,
+                        get_ip_addr_from_nic: Boolean(checked),
+                      }))
                     }
                   />
-                  <label className="text-sm font-normal cursor-pointer" onClick={() =>
-                    setForm((prev) => ({ ...prev, get_ip_addr_from_nic: !prev.get_ip_addr_from_nic }))
-                  }>
-                    {t("admin.nodeTable.getIpAddrFromNic", "从网卡获取 IP 地址")}
+                  <label
+                    className="text-sm font-normal cursor-pointer"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        get_ip_addr_from_nic: !prev.get_ip_addr_from_nic,
+                      }))
+                    }
+                  >
+                    {t(
+                      "admin.nodeTable.getIpAddrFromNic",
+                      "从网卡获取 IP 地址",
+                    )}
                   </label>
                 </Flex>
               </div>
@@ -1658,11 +1710,18 @@ function AgentConfigButton({ node }: { node: NodeDetail }) {
             <div className="grid grid-cols-2 gap-x-8 gap-y-4">
               <div>
                 <label className="mb-1 flex items-center gap-2 text-sm font-bold cursor-pointer">
-                  <Checkbox checked={enabledFields.interval} onCheckedChange={(checked) => {
-                    const enabled = Boolean(checked);
-                    setEnabledFields((prev) => ({ ...prev, interval: enabled }));
-                    if (!enabled) setForm((prev) => ({ ...prev, interval: 3 }));
-                  }} />
+                  <Checkbox
+                    checked={enabledFields.interval}
+                    onCheckedChange={(checked) => {
+                      const enabled = Boolean(checked);
+                      setEnabledFields((prev) => ({
+                        ...prev,
+                        interval: enabled,
+                      }));
+                      if (!enabled)
+                        setForm((prev) => ({ ...prev, interval: 3 }));
+                    }}
+                  />
                   {t("admin.nodeTable.interval", "采集间隔（秒）")}
                 </label>
                 {enabledFields.interval && (
@@ -1672,18 +1731,34 @@ function AgentConfigButton({ node }: { node: NodeDetail }) {
                     max="3600"
                     step="0.5"
                     value={String(form.interval)}
-                    onChange={(e) => setForm((prev) => ({ ...prev, interval: Number(e.target.value) }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        interval: Number(e.target.value),
+                      }))
+                    }
                   />
                 )}
               </div>
 
               <div>
                 <label className="mb-1 flex items-center gap-2 text-sm font-bold cursor-pointer">
-                  <Checkbox checked={enabledFields.monthRotate} onCheckedChange={(checked) => {
-                    const enabled = Boolean(checked);
-                    setEnabledFields((prev) => ({ ...prev, monthRotate: enabled }));
-                    setForm((prev) => ({ ...prev, month_rotate: enabled ? Math.max(prev.month_rotate, 1) : 0 }));
-                  }} />
+                  <Checkbox
+                    checked={enabledFields.monthRotate}
+                    onCheckedChange={(checked) => {
+                      const enabled = Boolean(checked);
+                      setEnabledFields((prev) => ({
+                        ...prev,
+                        monthRotate: enabled,
+                      }));
+                      setForm((prev) => ({
+                        ...prev,
+                        month_rotate: enabled
+                          ? Math.max(prev.month_rotate, 1)
+                          : 0,
+                      }));
+                    }}
+                  />
                   {t("admin.nodeTable.monthRotate", "网络统计月重置日")}
                 </label>
                 {enabledFields.monthRotate && (
@@ -1693,10 +1768,18 @@ function AgentConfigButton({ node }: { node: NodeDetail }) {
                       min="1"
                       max="31"
                       value={String(form.month_rotate)}
-                      onChange={(e) => setForm((prev) => ({ ...prev, month_rotate: Number(e.target.value) }))}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          month_rotate: Number(e.target.value),
+                        }))
+                      }
                     />
                     <Text as="div" size="1" color="gray" mt="1">
-                      {t("admin.agentConfig.monthRotateDesc", "1–31 表示每月重置日，0 表示禁用月度网络统计")}
+                      {t(
+                        "admin.agentConfig.monthRotateDesc",
+                        "1–31 表示每月重置日，0 表示禁用月度网络统计",
+                      )}
                     </Text>
                   </>
                 )}
@@ -1704,61 +1787,103 @@ function AgentConfigButton({ node }: { node: NodeDetail }) {
 
               <div>
                 <label className="mb-1 flex items-center gap-2 text-sm font-bold cursor-pointer">
-                  <Checkbox checked={enabledFields.includeNics} onCheckedChange={(checked) => {
-                    const enabled = Boolean(checked);
-                    setEnabledFields((prev) => ({ ...prev, includeNics: enabled }));
-                    if (!enabled) setForm((prev) => ({ ...prev, include_nics: "" }));
-                  }} />
+                  <Checkbox
+                    checked={enabledFields.includeNics}
+                    onCheckedChange={(checked) => {
+                      const enabled = Boolean(checked);
+                      setEnabledFields((prev) => ({
+                        ...prev,
+                        includeNics: enabled,
+                      }));
+                      if (!enabled)
+                        setForm((prev) => ({ ...prev, include_nics: "" }));
+                    }}
+                  />
                   {t("admin.nodeTable.includeNics", "只监测特定网卡")}
                 </label>
                 {enabledFields.includeNics && (
                   <TextField.Root
                     value={form.include_nics}
                     placeholder="eth0,ens*"
-                    onChange={(e) => setForm((prev) => ({ ...prev, include_nics: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        include_nics: e.target.value,
+                      }))
+                    }
                   />
                 )}
               </div>
 
               <div>
                 <label className="mb-1 flex items-center gap-2 text-sm font-bold cursor-pointer">
-                  <Checkbox checked={enabledFields.excludeNics} onCheckedChange={(checked) => {
-                    const enabled = Boolean(checked);
-                    setEnabledFields((prev) => ({ ...prev, excludeNics: enabled }));
-                    if (!enabled) setForm((prev) => ({ ...prev, exclude_nics: "" }));
-                  }} />
+                  <Checkbox
+                    checked={enabledFields.excludeNics}
+                    onCheckedChange={(checked) => {
+                      const enabled = Boolean(checked);
+                      setEnabledFields((prev) => ({
+                        ...prev,
+                        excludeNics: enabled,
+                      }));
+                      if (!enabled)
+                        setForm((prev) => ({ ...prev, exclude_nics: "" }));
+                    }}
+                  />
                   {t("admin.nodeTable.excludeNics", "排除特定网卡")}
                 </label>
                 {enabledFields.excludeNics && (
                   <TextField.Root
                     value={form.exclude_nics}
                     placeholder="lo,docker*"
-                    onChange={(e) => setForm((prev) => ({ ...prev, exclude_nics: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        exclude_nics: e.target.value,
+                      }))
+                    }
                   />
                 )}
               </div>
 
               <div className="col-span-2">
                 <label className="mb-1 flex items-center gap-2 text-sm font-bold cursor-pointer">
-                  <Checkbox checked={enabledFields.includeMountpoints} onCheckedChange={(checked) => {
-                    const enabled = Boolean(checked);
-                    setEnabledFields((prev) => ({ ...prev, includeMountpoints: enabled }));
-                    if (!enabled) setForm((prev) => ({ ...prev, include_mountpoints: "" }));
-                  }} />
+                  <Checkbox
+                    checked={enabledFields.includeMountpoints}
+                    onCheckedChange={(checked) => {
+                      const enabled = Boolean(checked);
+                      setEnabledFields((prev) => ({
+                        ...prev,
+                        includeMountpoints: enabled,
+                      }));
+                      if (!enabled)
+                        setForm((prev) => ({
+                          ...prev,
+                          include_mountpoints: "",
+                        }));
+                    }}
+                  />
                   {t("admin.nodeTable.includeMountpoints", "只监测特定挂载点")}
                 </label>
                 {enabledFields.includeMountpoints && (
                   <TextField.Root
                     value={form.include_mountpoints}
                     placeholder="/;/data"
-                    onChange={(e) => setForm((prev) => ({ ...prev, include_mountpoints: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        include_mountpoints: e.target.value,
+                      }))
+                    }
                   />
                 )}
               </div>
             </div>
 
             <Text size="1" color="gray">
-              {t("admin.agentConfig.installOnlyHint", "安装目录、服务名称、安装版本和 GitHub 代理仅在部署时生效；需要修改请重新部署 Agent。")}
+              {t(
+                "admin.agentConfig.installOnlyHint",
+                "安装目录、服务名称、安装版本和 GitHub 代理仅在部署时生效；需要修改请重新部署 Agent。",
+              )}
             </Text>
 
             <Flex gap="2" justify="end">
@@ -1821,7 +1946,7 @@ function DeleteButton({ node }: { node: NodeDetail }) {
       refresh();
     } catch (error) {
       toast.error(
-        `Error: ${error instanceof Error ? error.message : String(error)}`
+        `Error: ${error instanceof Error ? error.message : String(error)}`,
       );
     } finally {
       setDeleting(false);
@@ -1836,9 +1961,7 @@ function DeleteButton({ node }: { node: NodeDetail }) {
       </Dialog.Trigger>
       <Dialog.Content>
         <Dialog.Title>{t("common.delete")}</Dialog.Title>
-        <Dialog.Description>
-          {t("common.confirm_delete")}
-        </Dialog.Description>
+        <Dialog.Description>{t("common.confirm_delete")}</Dialog.Description>
         <Flex justify="end" gap="2" mt="4">
           <Dialog.Trigger>
             <Button variant="soft">{t("common.cancel")}</Button>
@@ -1852,7 +1975,6 @@ function DeleteButton({ node }: { node: NodeDetail }) {
   );
 }
 type InstallOptions = {
-  disableRemoteExec: boolean;
   disableAutoUpdate: boolean;
   ignoreUnsafeCert: boolean;
   memoryIncludeCache: boolean;
@@ -1880,7 +2002,6 @@ function GenerateCommandButton({
   const [selectedPlatform, setSelectedPlatform] =
     React.useState<Platform>("linux");
   const [installOptions, setInstallOptions] = React.useState<InstallOptions>({
-    disableRemoteExec: false,
     disableAutoUpdate: false,
     ignoreUnsafeCert: false,
     memoryIncludeCache: false,
@@ -1922,7 +2043,7 @@ function GenerateCommandButton({
   }, [isSnapshotBackend]);
 
   const generateCommand = () => {
-    const host = function () {
+    const host = (function () {
       if (!settings.script_domain) {
         return window.location.origin;
       }
@@ -1930,13 +2051,10 @@ function GenerateCommandButton({
         return settings.script_domain.replace(/\/+$/, "");
       }
       return `http://${settings.script_domain.replace(/\/+$/, "")}`;
-    }();
+    })();
     const token = node.token || "";
     let args = ["-e", host, "-t", token];
     // 根据安装选项生成参数
-    if (installOptions.disableRemoteExec) {
-      args.push("--disable-remote-exec");
-    }
     if (installOptions.disableAutoUpdate) {
       args.push("--disable-auto-update");
     }
@@ -1955,9 +2073,7 @@ function GenerateCommandButton({
     const ghproxy = installOptions.ghproxy.trim();
     if (enableGhproxy && ghproxy) {
       const finalUrl = (
-        ghproxy.startsWith("http")
-          ? ghproxy
-          : `http://${ghproxy}`
+        ghproxy.startsWith("http") ? ghproxy : `http://${ghproxy}`
       ).replace(/\/+$/, "");
       args.push(`--install-ghproxy`);
       args.push(finalUrl);
@@ -1993,9 +2109,15 @@ function GenerateCommandButton({
       args.push(includeMountpoints);
     }
     if (enableInterval) {
-      const intervalVal = Number.parseFloat((installOptions.interval || "").trim());
+      const intervalVal = Number.parseFloat(
+        (installOptions.interval || "").trim(),
+      );
       args.push("-i");
-      args.push(Number.isFinite(intervalVal) && intervalVal >= 1 ? String(intervalVal) : "1");
+      args.push(
+        Number.isFinite(intervalVal) && intervalVal >= 1
+          ? String(intervalVal)
+          : "1",
+      );
     }
     if (enableMonthRotate) {
       const rotateVal = (installOptions.monthRotate || "").trim() || "1"; // 默认 1
@@ -2099,28 +2221,6 @@ function GenerateCommandButton({
               {t("admin.nodeTable.installOptions", "安装选项")}
             </label>
             <div className="grid grid-cols-2 gap-2">
-              <Flex gap="2" align="center">
-                <Checkbox
-                  checked={installOptions.disableRemoteExec}
-                  onCheckedChange={(checked) => {
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      disableRemoteExec: Boolean(checked),
-                    }));
-                  }}
-                />
-                <label
-                  className="text-sm font-normal"
-                  onClick={() => {
-                    setInstallOptions((prev) => ({
-                      ...prev,
-                      disableRemoteExec: !prev.disableRemoteExec,
-                    }));
-                  }}
-                >
-                  {t("admin.nodeTable.disableRemoteExec")}
-                </label>
-              </Flex>
               <Flex gap="2" align="center">
                 <Checkbox
                   checked={installOptions.disableAutoUpdate}
@@ -2231,7 +2331,10 @@ function GenerateCommandButton({
                     }));
                   }}
                 >
-                  {t("admin.nodeTable.enableGpuMonitoring", "启用详细 GPU 监控")}
+                  {t(
+                    "admin.nodeTable.enableGpuMonitoring",
+                    "启用详细 GPU 监控",
+                  )}
                 </label>
               </Flex>
             </div>
@@ -2355,7 +2458,7 @@ function GenerateCommandButton({
                 <TextField.Root
                   placeholder={t(
                     "admin.nodeTable.install_dir_placeholder",
-                    "安装目录，为空则使用默认目录(/opt/komari-agent)"
+                    "安装目录，为空则使用默认目录(/opt/komari-agent)",
                   )}
                   value={installOptions.dir}
                   onChange={(e) =>
@@ -2399,7 +2502,7 @@ function GenerateCommandButton({
                 <TextField.Root
                   placeholder={t(
                     "admin.nodeTable.serviceName_placeholder",
-                    "服务名称，为空则使用默认名称(komari-agent)"
+                    "服务名称，为空则使用默认名称(komari-agent)",
                   )}
                   value={installOptions.serviceName}
                   onChange={(e) =>
@@ -2793,7 +2896,7 @@ function EditButton({ node }: { node: NodeDetail }) {
               resize={"vertical"}
               placeholder={t(
                 "admin.nodeEdit.remarkPlaceholder",
-                "请输入私有备注"
+                "请输入私有备注",
               )}
             />
           </div>
@@ -2806,7 +2909,7 @@ function EditButton({ node }: { node: NodeDetail }) {
               resize={"vertical"}
               placeholder={t(
                 "admin.nodeEdit.publicRemarkPlaceholder",
-                "请输入公开备注"
+                "请输入公开备注",
               )}
               ref={publicRemarkRef}
             />
@@ -2885,14 +2988,17 @@ function EditButton({ node }: { node: NodeDetail }) {
 function DetailView({ node }: { node: NodeDetail }) {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
-  const copy = React.useCallback(async (text: string) => {
-    const ok = await copyText(text);
-    if (ok) {
-      toast.success(t("copy_success", "已复制到剪贴板"));
-    } else {
-      toast.error(t("copy_failed", "复制失败，请手动复制"));
-    }
-  }, [t]);
+  const copy = React.useCallback(
+    async (text: string) => {
+      const ok = await copyText(text);
+      if (ok) {
+        toast.success(t("copy_success", "已复制到剪贴板"));
+      } else {
+        toast.error(t("copy_failed", "复制失败，请手动复制"));
+      }
+    },
+    [t],
+  );
 
   return (
     <Drawer direction={isMobile ? "bottom" : "right"}>
@@ -3131,10 +3237,10 @@ function BillingButton({ node }: { node: NodeDetail }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [billingCycle, setBillingCycle] = React.useState<string>(
-    node.billing_cycle.toString()
+    node.billing_cycle.toString(),
   );
   const [autoRenewal, setAutoRenewal] = React.useState<boolean>(
-    node.auto_renewal || false
+    node.auto_renewal || false,
   );
   const [currency, setCurrency] = React.useState<string>(node.currency || "$");
 
@@ -3152,7 +3258,7 @@ function BillingButton({ node }: { node: NodeDetail }) {
         return;
       }
       const billingCycleValue = parseInt(
-        (formData.get("billingCycle") as string) || "30"
+        (formData.get("billingCycle") as string) || "30",
       );
       const expiredAtValue = (formData.get("expiredAt") as string) || "";
       const expiredAt = expiredAtValue
@@ -3217,24 +3323,31 @@ function BillingButton({ node }: { node: NodeDetail }) {
             />
 
             <label className="font-bold flex items-center gap-1">
-              {t("admin.nodeTable.billingCycle")} <Tips><span dangerouslySetInnerHTML={{ __html: t("admin.nodeTable.billingCycleTips") }}></span></Tips>
+              {t("admin.nodeTable.billingCycle")}{" "}
+              <Tips>
+                <span
+                  dangerouslySetInnerHTML={{
+                    __html: t("admin.nodeTable.billingCycleTips"),
+                  }}
+                ></span>
+              </Tips>
             </label>
             <SelectOrInput
-            options={[
-              { label: t("common.monthly"), value: "30" },
-              { label: t("common.quarterly"), value: "92" },
-              { label: t("common.semi_annual"), value: "184" },
-              { label: t("common.annual"), value: "365" },
-              { label: t("common.biennial"), value: "730" },
-              { label: t("common.triennial"), value: "1095" },
-              { label: t("common.quinquennial"), value: "1825" },
-              { label: t("common.once"), value: "-1" },
-            ]}
-            type="number"
-            name="billingCycle"
-            value={billingCycle === "0" ? "" : billingCycle}
-            onChange={setBillingCycle}
-          />
+              options={[
+                { label: t("common.monthly"), value: "30" },
+                { label: t("common.quarterly"), value: "92" },
+                { label: t("common.semi_annual"), value: "184" },
+                { label: t("common.annual"), value: "365" },
+                { label: t("common.biennial"), value: "730" },
+                { label: t("common.triennial"), value: "1095" },
+                { label: t("common.quinquennial"), value: "1825" },
+                { label: t("common.once"), value: "-1" },
+              ]}
+              type="number"
+              name="billingCycle"
+              value={billingCycle === "0" ? "" : billingCycle}
+              onChange={setBillingCycle}
+            />
 
             <Flex gap="2" align="center">
               <label className="font-bold">
@@ -3256,7 +3369,7 @@ function BillingButton({ node }: { node: NodeDetail }) {
                   variant="ghost"
                   onClick={() => {
                     const dateInput = document.querySelector(
-                      'input[name="expiredAt"]'
+                      'input[name="expiredAt"]',
                     ) as HTMLInputElement;
                     if (dateInput) {
                       const futureDate = new Date();

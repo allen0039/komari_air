@@ -35,7 +35,7 @@ const (
 	v2SeenEventLimit = 4096
 )
 
-var v2Capabilities = []string{"exec", "ping", "message", "event", "config:v1"}
+var v2Capabilities = []string{"ping", "message", "event", "config:v1"}
 
 func EstablishWebSocketConnection() {
 	var conn *ws.SafeConn
@@ -420,17 +420,6 @@ func processV2Event(conn *ws.SafeConn, method string, params interface{}, eventI
 		currentRevision, currentConfig := runtimeconfig.Current()
 		sendManagedConfigReport(conn, v2.ConfigReportParams{Revision: currentRevision, Status: "applied", Config: currentConfig})
 		return true
-	case v2.MethodAgentExec:
-		var p struct {
-			TaskID  string `json:"task_id"`
-			Command string `json:"command"`
-		}
-		if err := v2.BindParams(params, &p); err == nil {
-			go NewTask(p.TaskID, p.Command)
-			return true
-		} else {
-			log.Printf("bad v2 exec params: %v", err)
-		}
 	case v2.MethodAgentPing:
 		var p struct {
 			TaskID uint   `json:"ping_task_id"`

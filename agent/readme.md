@@ -32,7 +32,6 @@ export AGENT_TOKEN="your-token"
   "token": "your-token",
   "interval": 3,
   "disable_auto_update": false,
-  "disable_remote_exec": false,
   "ignore_unsafe_cert": false
 }
 ```
@@ -49,7 +48,6 @@ export AGENT_TOKEN="your-token"
 | `token` | `AGENT_TOKEN` | `--token`, `-t` | agent token | `0.0.9` |
 | `interval` | `AGENT_INTERVAL` | `--interval`, `-i` | 数据采集间隔，单位秒 | `0.0.9` |
 | `disable_auto_update` | `AGENT_DISABLE_AUTO_UPDATE` | `--disable-auto-update` | 禁用自动更新 | `0.0.9` |
-| `disable_remote_exec` | `AGENT_DISABLE_REMOTE_EXEC` | `--disable-remote-exec` | 禁用批量远程命令 | `komari_air` |
 | `ignore_unsafe_cert` | `AGENT_IGNORE_UNSAFE_CERT` | `--ignore-unsafe-cert`, `-u` | 忽略不安全证书 | `0.0.9` |
 | `include_nics` | `AGENT_INCLUDE_NICS` | `--include-nics` | 仅统计指定网卡，逗号分隔 | `0.0.22` |
 | `exclude_nics` | `AGENT_EXCLUDE_NICS` | `--exclude-nics` | 排除指定网卡，逗号分隔 | `0.0.22` |

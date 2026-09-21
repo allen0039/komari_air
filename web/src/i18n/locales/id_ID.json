@@ -106,7 +106,6 @@
       "customColumns": "Kolom Kustom",
       "deleting": "Menghapus...",
       "disableAutoUpdate": "Nonaktifkan Pembaruan Otomatis",
-      "disableRemoteExec": "Nonaktifkan Kontrol Jarak Jauh",
       "dragToReorder": "Tekan lama dan seret untuk mengurutkan ulang",
       "editNodePrice": "Ubah Harga",
       "emptyGuide": {
@@ -445,31 +444,6 @@
     "accept": "Saya telah membaca dan menyetujui",
     "reject": "Saya tidak menerima",
     "title": "Pemberitahuan Hukum dan Panduan Kepatuhan"
-  },
-  "exec": {
-    "allCompleted": "Semua tugas telah selesai dieksekusi",
-    "command": "Perintah",
-    "commandPlaceholder": "whoami (gunakan Shift+Enter untuk baris baru)",
-    "description": "Eksekusi perintah jarak jauh pada node yang dipilih",
-    "errors": {
-      "emptyCommand": "Perintah tidak boleh kosong.",
-      "executionFailed": "Eksekusi gagal",
-      "noNodes": "Silakan pilih minimal satu node."
-    },
-    "execute": "Eksekusi Jarak Jauh",
-    "executing": "Sedang mengeksekusi",
-    "pollingTimeout": "Waktu tunggu eksekusi tugas habis",
-    "results": "Hasil eksekusi",
-    "selectedNodes": "Node terpilih",
-    "selectNodes": "Pilih node tujuan",
-    "status": {
-      "polling": "Mengambil status eksekusi terbaru...",
-      "running": "Sedang berjalan",
-      "timeout": "Waktu habis"
-    },
-    "stopPolling": "Hentikan pemantauan",
-    "taskStarted": "Tugas telah dimulai.",
-    "title": "Eksekusi Jarak Jauh"
   },
   "file_manager": {
     "action_failed": "Operasi file gagal",

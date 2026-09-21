@@ -3,7 +3,7 @@ import { resolveI18nText } from "@/utils/i18nText";
 // 法律声明与合规指引全文（按语言本地化）
 // EULA full text, localized per language.
 export const EULAS: Record<string, string> = {
-  "zh_CN": `法律声明与合规指引
+  zh_CN: `法律声明与合规指引
 
 重要提示
   本文档旨在明确 Komari（“本软件”）的合法使用边界、用户权利义务与风险提示。请在下载、安装或使用本软件前，务必完整阅读并理解本声明的全部内容。一经下载、安装或使用，即视为您已理解并同意受本声明约束。
@@ -57,7 +57,7 @@ export const EULAS: Record<string, string> = {
 
 10. 风险提示
   - 本软件以“现状”提供，可能受限于网络、硬件、系统差异而产生不兼容、不可用或误用风险。
-  - 远程控制与批量操作具有潜在高风险，请务必采取最小权限、分级授权、多因素认证、审计留痕、分环境验证等最佳实践。
+  - 批量管理与自动化操作具有潜在高风险，请务必采取最小权限、分级授权、多因素认证、审计留痕、分环境验证等最佳实践。
 
 11. 免责声明
   在适用法律允许的最大范围内：本软件及其开发者不对本软件的适用性、稳定性、正确性、可用性或特定目的适配性作出任何明示或默示保证；亦不对因使用或无法使用本软件而导致的任何形式的损失或损害承担责任。
@@ -85,7 +85,7 @@ export const EULAS: Record<string, string> = {
 
 生效日期：2025-10-20
 `,
-  "zh_TW": `法律聲明與合規指引
+  zh_TW: `法律聲明與合規指引
 
 重要提示
   本文件旨在明確 Komari（“本軟體”）的合法使用邊界、使用者權利義務與風險提示。請在下載、安裝或使用本軟體前，務必完整閱讀並理解本聲明的全部內容。一經下載、安裝或使用，即視為您已理解並同意受本聲明約束。
@@ -167,7 +167,7 @@ export const EULAS: Record<string, string> = {
 
 生效日期：2025-10-20
 `,
-  "en": `Legal Notice and Compliance Guide
+  en: `Legal Notice and Compliance Guide
 
 Important Notice
   This document clarifies the lawful boundaries of using Komari ("the Software"), your rights and obligations, and risk disclosures. Before downloading, installing, or using the Software, please read and understand this notice in full. By downloading, installing, or using the Software, you acknowledge that you have read, understood, and agreed to be bound by this notice.
@@ -221,7 +221,7 @@ Important Notice
 
 10. Risk Disclosure
   - The Software is provided "as is" and may be subject to incompatibility, unavailability, or misuse risks due to differences in networks, hardware, or systems.
-  - Remote control and batch operations carry potentially high risks. Please be sure to adopt best practices such as least privilege, tiered authorization, multi-factor authentication, audit trails, and staged environment validation.
+  - Batch management and automation operations carry potentially high risks. Please be sure to adopt best practices such as least privilege, tiered authorization, multi-factor authentication, audit trails, and staged environment validation.
 
 11. Disclaimer of Warranties
   To the maximum extent permitted by applicable law, the Software and its developers make no express or implied warranties regarding the suitability, stability, correctness, availability, or fitness for a particular purpose of the Software, and assume no liability for any loss or damage arising from the use of or inability to use the Software.
@@ -249,7 +249,7 @@ Important Notice
 
 Effective date: 2025-10-20
 `,
-  "ja_JP": `法的通知とコンプライアンスガイド
+  ja_JP: `法的通知とコンプライアンスガイド
 
 重要な注意
   本書は、Komari（「本ソフトウェア」）の合法的な利用範囲、ユーザーの権利義務、およびリスクに関する注意事項を明確にすることを目的としています。本ソフトウェアをダウンロード、インストール、または使用する前に、本書の全内容を必ずお読みいただきご理解ください。ダウンロード、インストール、または使用した時点で、本書の内容を理解し同意したものとみなされます。
@@ -331,7 +331,7 @@ Effective date: 2025-10-20
 
 発効日：2025-10-20
 `,
-  "id_ID": `Pemberitahuan Hukum dan Panduan Kepatuhan
+  id_ID: `Pemberitahuan Hukum dan Panduan Kepatuhan
 
 Penting
   Dokumen ini bertujuan untuk menjelaskan batas penggunaan Komari ("Perangkat Lunak") secara sah, hak dan kewajiban pengguna, serta peringatan risiko. Sebelum mengunduh, menginstal, atau menggunakan Perangkat Lunak, harap baca dan pahami seluruh isi pemberitahuan ini. Dengan mengunduh, menginstal, atau menggunakan Perangkat Lunak, Anda dianggap telah memahami dan menyetujui untuk terikat oleh pemberitahuan ini.

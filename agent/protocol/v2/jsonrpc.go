@@ -10,8 +10,6 @@ const (
 	MethodAgentReport       = "agent.report"
 	MethodAgentBasicInfo    = "agent.basicInfo"
 	MethodAgentPingResult   = "agent.pingResult"
-	MethodAgentTaskResult   = "agent.taskResult"
-	MethodAgentExec         = "agent.exec"
 	MethodAgentPing         = "agent.ping"
 	MethodAgentMessage      = "agent.message"
 	MethodAgentEvent        = "agent.event"
@@ -61,13 +59,6 @@ type ConfigReportParams struct {
 	Status   string             `json:"status"`
 	Config   AgentManagedConfig `json:"config"`
 	Error    string             `json:"error,omitempty"`
-}
-
-type TaskResultParams struct {
-	TaskID     string    `json:"task_id"`
-	Result     string    `json:"result"`
-	ExitCode   int       `json:"exit_code"`
-	FinishedAt time.Time `json:"finished_at"`
 }
 
 type Event struct {

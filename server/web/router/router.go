@@ -120,17 +120,6 @@ func registerAdminRoutes(r *gin.Engine) {
 
 	// --- 以下全部 JSON -> RPC2 ---
 
-	// tasks（远程执行）
-	task := g.Group("/task")
-	{
-		task.GET("/all", jsonRpc.Bind("admin:getTasks"))
-		task.POST("/exec", api.RequireSensitive2FA(), jsonRpc.Bind("admin:exec"))
-		task.GET("/:task_id", jsonRpc.Bind("admin:getTaskById", jsonRpc.WithPath("task_id")))
-		task.GET("/:task_id/result", jsonRpc.Bind("admin:getTaskResultsByTaskId", jsonRpc.WithPath("task_id")))
-		task.GET("/:task_id/result/:uuid", jsonRpc.Bind("admin:getSpecificTaskResult", jsonRpc.WithPath("task_id", "uuid")))
-		task.GET("/client/:uuid", jsonRpc.Bind("admin:getTasksByClientId", jsonRpc.WithPath("uuid")))
-	}
-
 	// settings
 	settings := g.Group("/settings")
 	{

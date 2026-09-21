@@ -9,17 +9,12 @@ type shutdownCoordinator struct {
 	mu            sync.Mutex
 	once          sync.Once
 	exitCode      int
-	stopWarning   func()
 	stopNetstatic func() error
 	exit          func(int)
 }
 
-func newShutdownCoordinator(stopWarning func(), stopNetstatic func() error, exit func(int)) *shutdownCoordinator {
-	return &shutdownCoordinator{
-		stopWarning:   stopWarning,
-		stopNetstatic: stopNetstatic,
-		exit:          exit,
-	}
+func newShutdownCoordinator(stopNetstatic func() error, exit func(int)) *shutdownCoordinator {
+	return &shutdownCoordinator{stopNetstatic: stopNetstatic, exit: exit}
 }
 
 func (s *shutdownCoordinator) shutdown(exitCode int) {
@@ -30,7 +25,6 @@ func (s *shutdownCoordinator) shutdown(exitCode int) {
 	s.mu.Unlock()
 
 	s.once.Do(func() {
-		s.stopWarning()
 		if err := s.stopNetstatic(); err != nil {
 			log.Printf("Failed to stop netstatic monitoring: %v", err)
 		}

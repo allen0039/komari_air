@@ -106,7 +106,6 @@
       "customColumns": "カスタム列",
       "deleting": "削除中...",
       "disableAutoUpdate": "自動更新を無効にする",
-      "disableRemoteExec": "リモートコントロールを無効にする",
       "dragToReorder": "長押ししてドラッグで再配置",
       "editNodePrice": "請求書を編集",
       "emptyGuide": {
@@ -445,31 +444,6 @@
     "accept": "よく読んで同意します",
     "reject": "同意しません",
     "title": "法的通知とコンプライアンスガイド"
-  },
-  "exec": {
-    "allCompleted": "すべてのタスクが完了しました",
-    "command": "コマンドを実行",
-    "commandPlaceholder": "whoami（Shift+Enter で改行）",
-    "description": "選択したノードでリモートコマンドを実行",
-    "errors": {
-      "emptyCommand": "コマンドは空にできません",
-      "executionFailed": "実行に失敗しました",
-      "noNodes": "少なくとも1つのノードを選択してください"
-    },
-    "execute": "コマンドを実行",
-    "executing": "実行中...",
-    "pollingTimeout": "タスクの実行がタイムアウトしました",
-    "results": "実行結果",
-    "selectedNodes": "選択されたノード",
-    "selectNodes": "ターゲットノードを選択",
-    "status": {
-      "polling": "最新の実行状態を取得しています...",
-      "running": "実行中",
-      "timeout": "タイムアウト"
-    },
-    "stopPolling": "ポーリングを停止",
-    "taskStarted": "タスクが開始されました",
-    "title": "リモート実行"
   },
   "file_manager": {
     "action_failed": "ファイル操作に失敗しました",

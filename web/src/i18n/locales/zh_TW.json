@@ -106,7 +106,6 @@
       "customColumns": "自定義列",
       "deleting": "刪除中...",
       "disableAutoUpdate": "禁用自動更新",
-      "disableRemoteExec": "禁用遠端控制",
       "dragToReorder": "長按拖拽重新排序",
       "editNodePrice": "編輯帳單",
       "emptyGuide": {
@@ -445,31 +444,6 @@
     "accept": "我已詳細閱讀並接受",
     "reject": "不接受",
     "title": "法律聲明與合規指引"
-  },
-  "exec": {
-    "allCompleted": "所有任務執行完成",
-    "command": "執行命令",
-    "commandPlaceholder": "whoami（使用 Shift+Enter 換行）",
-    "description": "在選定的節點上遠端執行命令",
-    "errors": {
-      "emptyCommand": "命令不能為空",
-      "executionFailed": "執行失敗",
-      "noNodes": "請至少選擇一個節點"
-    },
-    "execute": "執行命令",
-    "executing": "執行中...",
-    "pollingTimeout": "任務執行超時",
-    "results": "執行結果",
-    "selectedNodes": "已選擇節點",
-    "selectNodes": "選擇目標節點",
-    "status": {
-      "polling": "正在取得最新執行狀態...",
-      "running": "正在執行",
-      "timeout": "超時"
-    },
-    "stopPolling": "停止輪詢",
-    "taskStarted": "任務已啟動",
-    "title": "遠端執行"
   },
   "file_manager": {
     "action_failed": "檔案操作失敗",

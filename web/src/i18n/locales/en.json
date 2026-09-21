@@ -106,7 +106,6 @@
       "customColumns": "Custom columns",
       "deleting": "Delete...",
       "disableAutoUpdate": "Disable auto update",
-      "disableRemoteExec": "Disable remote control",
       "dragToReorder": "Long press and drag to reorder",
       "editNodePrice": "Edit Price",
       "emptyGuide": {
@@ -304,7 +303,12 @@
       "column": "Column",
       "loading_agent": "Fetching file from agent...",
       "maximize": "Maximize",
-      "menu": { "edit": "Edit", "file": "File", "terminal": "Terminal", "view": "View" },
+      "menu": {
+        "edit": "Edit",
+        "file": "File",
+        "terminal": "Terminal",
+        "view": "View"
+      },
       "minimap": "Minimap",
       "no_symbols": "No symbols found",
       "outline": "Outline",
@@ -551,31 +555,6 @@
     "accept": "I have read and accept",
     "reject": "I do not accept",
     "title": "Legal Notice and Compliance Guide"
-  },
-  "exec": {
-    "allCompleted": "All tasks executed successfully",
-    "command": "Execute command",
-    "commandPlaceholder": "whoami (use Shift+Enter to start a new line)",
-    "description": "Remotely execute commands on selected nodes",
-    "errors": {
-      "emptyCommand": "The command cannot be empty.",
-      "executionFailed": "Execution failed",
-      "noNodes": "Please select at least one node."
-    },
-    "execute": "Remote Exec",
-    "executing": "Executing",
-    "pollingTimeout": "Task execution timed out",
-    "results": "Execute result",
-    "selectedNodes": "Selected node",
-    "selectNodes": "Select target node",
-    "status": {
-      "polling": "Fetching the latest execution status...",
-      "running": "Running",
-      "timeout": "Timeout"
-    },
-    "stopPolling": "Stop polling",
-    "taskStarted": "The task has been initiated.",
-    "title": "Remote Exec"
   },
   "go_to_home": "Go to home",
   "install": {
@@ -980,7 +959,7 @@
   },
   "settings": {
     "api": {
-      "description": "API keys can be used to access and operate all resources, including but not limited to remote control, modification of settings, and account passwords. Please keep them safe. Leaving this field blank will disable the API key function.",
+      "description": "API keys can be used to access and operate all resources, including settings changes and account management. Please keep them safe. Leaving this field blank will disable the API key function.",
       "key_length_error": "The API key must be at least 12 characters long",
       "title": "API key"
     },

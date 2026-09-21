@@ -27,7 +27,6 @@ async function removeClient(uuid: string) {
 }
 
 type InstallOptions = {
-  disableRemoteExec: boolean;
   disableAutoUpdate: boolean;
   ignoreUnsafeCert: boolean;
   ghproxy: string;
@@ -43,7 +42,6 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
   const [selectedPlatform, setSelectedPlatform] =
     React.useState<Platform>("linux");
   const [installOptions, setInstallOptions] = React.useState<InstallOptions>({
-    disableRemoteExec: false,
     disableAutoUpdate: false,
     ignoreUnsafeCert: false,
     ghproxy: "",
@@ -56,9 +54,6 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
     const token = row.original.token ?? "";
     const args: string[] = ["-e", host, "-t", token];
     // 根据安装选项生成参数
-    if (installOptions.disableRemoteExec) {
-      args.push("--disable-remote-exec");
-    }
     if (installOptions.disableAutoUpdate) {
       args.push("--disable-auto-update");
     }
@@ -155,28 +150,6 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
               <div className="grid grid-cols-2 gap-2">
                 <Flex gap="2">
                   <Checkbox
-                    checked={installOptions.disableRemoteExec}
-                    onCheckedChange={(checked) => {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        disableRemoteExec: Boolean(checked),
-                      }));
-                    }}
-                  />
-                  <label
-                    className="text-sm font-normal"
-                    onClick={() => {
-                      setInstallOptions((prev) => ({
-                        ...prev,
-                        disableRemoteExec: !prev.disableRemoteExec,
-                      }));
-                    }}
-                  >
-                    {t("admin.nodeTable.disableRemoteExec", "禁用远程命令")}
-                  </label>
-                </Flex>
-                <Flex gap="2">
-                  <Checkbox
                     checked={installOptions.disableAutoUpdate}
                     onCheckedChange={(checked) => {
                       setInstallOptions((prev) => ({
@@ -227,7 +200,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                 <TextField.Root
                   placeholder={t(
                     "admin.nodeTable.ghproxy_placeholder",
-                    "GitHub 代理，为空则不使用代理"
+                    "GitHub 代理，为空则不使用代理",
                   )}
                   onChange={(e) =>
                     setInstallOptions((prev) => ({
@@ -242,7 +215,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                 <TextField.Root
                   placeholder={t(
                     "admin.nodeTable.install_dir_placeholder",
-                    "安装目录，为空则使用默认目录(/opt/komari-agent)"
+                    "安装目录，为空则使用默认目录(/opt/komari-agent)",
                   )}
                   onChange={(e) =>
                     setInstallOptions((prev) => ({
@@ -257,7 +230,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                 <TextField.Root
                   placeholder={t(
                     "admin.nodeTable.serviceName_placeholder",
-                    "服务名称，为空则使用默认名称(komari-agent)"
+                    "服务名称，为空则使用默认名称(komari-agent)",
                   )}
                   onChange={(e) =>
                     setInstallOptions((prev) => ({
@@ -296,21 +269,19 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
       {/** Edit Button */}
       <EditDialog item={row.original} />
       {/** Edit Money */}
-      <Dialog.Root> 
+      <Dialog.Root>
         <Dialog.Trigger>
           <IconButton
             variant="ghost"
             title={t("admin.nodeTable.editNodePrice", "Edit Price")}
             aria-label={t("admin.nodeTable.editNodePrice", "Edit Price")}
           >
-           <DollarSign className="p-1" />
+            <DollarSign className="p-1" />
           </IconButton>
         </Dialog.Trigger>
         <Dialog.Content>
           <Dialog.Title>{t("admin.nodeTable.editNodePrice")}</Dialog.Title>
-          <label>
-            123
-          </label>
+          <label>123</label>
         </Dialog.Content>
       </Dialog.Root>
       {/** Delete Button */}
@@ -346,9 +317,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
                   if (refreshTable) refreshTable();
                 }}
               >
-                {removing
-                  ? t("admin.nodeTable.deleting")
-                  : t("common.confirm")}
+                {removing ? t("admin.nodeTable.deleting") : t("common.confirm")}
               </Button>
             </Dialog.Trigger>
           </Flex>

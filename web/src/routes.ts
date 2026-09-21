@@ -46,7 +46,13 @@ export const routes: RouteObject[] = [
     path: "/admin",
     element: React.createElement(AdminLayout),
     children: [
-      { index: true, element: React.createElement(Navigate, { to: "/admin/dashboard", replace: true }) },
+      {
+        index: true,
+        element: React.createElement(Navigate, {
+          to: "/admin/dashboard",
+          replace: true,
+        }),
+      },
       {
         path: "dashboard",
         element: React.createElement(Dashboard),
@@ -58,25 +64,25 @@ export const routes: RouteObject[] = [
       {
         path: "theme_managed",
         element: React.createElement(
-          lazy(() => import("./pages/admin/theme_managed.tsx"))
+          lazy(() => import("./pages/admin/theme_managed.tsx")),
         ),
       },
       {
         path: "theme_raw",
         element: React.createElement(
-          lazy(() => import("./pages/admin/theme_raw.tsx"))
+          lazy(() => import("./pages/admin/theme_raw.tsx")),
         ),
       },
       {
         path: "themes",
         element: React.createElement(
-          lazy(() => import("./pages/admin/settings/_layout"))
+          lazy(() => import("./pages/admin/settings/_layout")),
         ),
         children: [
           {
             index: true,
             element: React.createElement(
-              lazy(() => import("./pages/admin/themes"))
+              lazy(() => import("./pages/admin/themes")),
             ),
           },
         ],
@@ -91,43 +97,43 @@ export const routes: RouteObject[] = [
       {
         path: "plugins",
         element: React.createElement(
-          lazy(() => import("./pages/admin/plugins"))
+          lazy(() => import("./pages/admin/plugins")),
         ),
       },
       {
         path: "plugins/config",
         element: React.createElement(
-          lazy(() => import("./pages/admin/plugin_config"))
+          lazy(() => import("./pages/admin/plugin_config")),
         ),
       },
       {
         path: "plugin-page",
         element: React.createElement(
-          lazy(() => import("./pages/admin/plugin_page"))
+          lazy(() => import("./pages/admin/plugin_page")),
         ),
       },
       {
         path: "market/themes",
         element: React.createElement(
-          lazy(() => import("./pages/admin/market/themes"))
+          lazy(() => import("./pages/admin/market/themes")),
         ),
       },
       {
         path: "sessions",
         element: React.createElement(
-          lazy(() => import("./pages/admin/sessions"))
+          lazy(() => import("./pages/admin/sessions")),
         ),
       },
       {
         path: "account",
         element: React.createElement(
-          lazy(() => import("./pages/admin/account"))
+          lazy(() => import("./pages/admin/account")),
         ),
       },
       {
         path: "settings",
         element: React.createElement(
-          lazy(() => import("./pages/admin/settings/_layout"))
+          lazy(() => import("./pages/admin/settings/_layout")),
         ),
         children: [
           {
@@ -140,7 +146,7 @@ export const routes: RouteObject[] = [
           {
             path: "site",
             element: React.createElement(
-              lazy(() => import("./pages/admin/settings/site"))
+              lazy(() => import("./pages/admin/settings/site")),
             ),
           },
           {
@@ -153,7 +159,7 @@ export const routes: RouteObject[] = [
           {
             path: "custom",
             element: React.createElement(
-              lazy(() => import("./pages/admin/settings/custom"))
+              lazy(() => import("./pages/admin/settings/custom")),
             ),
           },
           {
@@ -166,13 +172,13 @@ export const routes: RouteObject[] = [
           {
             path: "general",
             element: React.createElement(
-              lazy(() => import("./pages/admin/settings/general"))
+              lazy(() => import("./pages/admin/settings/general")),
             ),
           },
           {
             path: "metrics",
             element: React.createElement(
-              lazy(() => import("./pages/admin/settings/metrics"))
+              lazy(() => import("./pages/admin/settings/metrics")),
             ),
           },
         ],
@@ -190,13 +196,13 @@ export const routes: RouteObject[] = [
           {
             path: "channels",
             element: React.createElement(
-              lazy(() => import("./pages/admin/settings/_layout"))
+              lazy(() => import("./pages/admin/settings/_layout")),
             ),
             children: [
               {
                 index: true,
                 element: React.createElement(
-                  lazy(() => import("./pages/admin/notification/channels"))
+                  lazy(() => import("./pages/admin/notification/channels")),
                 ),
               },
             ],
@@ -204,19 +210,19 @@ export const routes: RouteObject[] = [
           {
             path: "offline",
             element: React.createElement(
-              lazy(() => import("./pages/admin/notification/offline"))
+              lazy(() => import("./pages/admin/notification/offline")),
             ),
           },
           {
             path: "load",
             element: React.createElement(
-              lazy(() => import("./pages/admin/notification/load"))
+              lazy(() => import("./pages/admin/notification/load")),
             ),
           },
           {
             path: "general",
             element: React.createElement(
-              lazy(() => import("./pages/admin/notification/general"))
+              lazy(() => import("./pages/admin/notification/general")),
             ),
           },
         ],
@@ -224,7 +230,7 @@ export const routes: RouteObject[] = [
       {
         path: "ping",
         element: React.createElement(
-          lazy(() => import("./pages/admin/pingTask"))
+          lazy(() => import("./pages/admin/pingTask")),
         ),
       },
       {
@@ -239,10 +245,6 @@ export const routes: RouteObject[] = [
         path: "pprof",
         element: React.createElement(lazy(() => import("./pages/admin/pprof"))),
       },
-      {
-        path: "exec",
-        element: React.createElement(lazy(() => import("./pages/admin/exec"))),
-      }
     ],
   },
   {

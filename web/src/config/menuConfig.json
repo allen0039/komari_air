@@ -21,11 +21,6 @@
           "icon": "Activity"
         },
         {
-          "labelKey": "exec.title",
-          "path": "/admin/exec",
-          "icon": "Code"
-        },
-        {
           "labelKey": "sessions.title",
           "path": "/admin/sessions",
           "icon": "Users"
