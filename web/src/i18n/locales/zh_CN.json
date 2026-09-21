@@ -356,7 +356,8 @@
     "update": "更新",
     "update_available": "有新版本",
     "updated_successfully": "成功更新",
-    "weight": "权重"
+    "weight": "权重",
+    "github": "GitHub"
   },
   "copy_success": "已复制到剪贴板",
   "current_online": "当前在线",

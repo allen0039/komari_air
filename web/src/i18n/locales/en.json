@@ -516,7 +516,8 @@
     "update": "Update",
     "update_available": "New version available",
     "updated_successfully": "Updated successfully",
-    "weight": "Weight"
+    "weight": "Weight",
+    "github": "GitHub"
   },
   "copy_success": "Copied!",
   "current_online": "Current Online",

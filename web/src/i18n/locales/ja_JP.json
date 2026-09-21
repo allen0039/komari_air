@@ -356,7 +356,8 @@
     "update": "更新",
     "update_available": "新しいバージョンがあります",
     "updated_successfully": "更新されました",
-    "weight": "重み"
+    "weight": "重み",
+    "github": "GitHub"
   },
   "copy_success": "クリップボードにコピーされました",
   "current_online": "現在オンライン",

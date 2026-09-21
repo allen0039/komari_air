@@ -129,18 +129,13 @@
           "labelKey": "account.title",
           "path": "/admin/account",
           "icon": "UserCircle"
-        },
-        {
-          "labelKey": "common.about",
-          "path": "/admin/about",
-          "icon": "AtSign"
         }
       ]
     },
     {
-      "labelKey": "common.documentation",
-      "path": "https://komari-document.pages.dev/",
-      "icon": "Book",
+      "labelKey": "common.github",
+      "path": "https://github.com/allen0039/komari_air",
+      "icon": "Github",
       "newTab": true,
       "bottom": true
     },

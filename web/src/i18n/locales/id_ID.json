@@ -356,7 +356,8 @@
     "update": "Perbarui",
     "update_available": "Versi baru tersedia",
     "updated_successfully": "Berhasil diperbarui",
-    "weight": "Bobot"
+    "weight": "Bobot",
+    "github": "GitHub"
   },
   "copy_success": "Berhasil disalin!",
   "current_online": "Sedang online",
