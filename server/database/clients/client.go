@@ -5,6 +5,7 @@ import (
 	"fmt"
 	logger "github.com/komari-monitor/komari/utils/log"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/komari-monitor/komari/database/dbcore"
@@ -231,6 +232,35 @@ func SaveClient(updates map[string]interface{}) error {
 				return fmt.Errorf("traffic_limit must be a valid non-negative int64 value, got %v", val)
 			}
 		}
+	}
+	if value, exists := updates["currency"]; exists {
+		currency, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("currency must be a string")
+		}
+		currency = strings.ToUpper(strings.TrimSpace(currency))
+		switch currency {
+		case "RMB", "¥", "￥":
+			currency = "CNY"
+		case "$":
+			currency = "USD"
+		case "€":
+			currency = "EUR"
+		case "£":
+			currency = "GBP"
+		case "₽":
+			currency = "RUB"
+		case "₹":
+			currency = "INR"
+		case "₫":
+			currency = "VND"
+		case "฿":
+			currency = "THB"
+		}
+		if currency == "" || len(currency) > 20 {
+			return fmt.Errorf("currency must be a non-empty code up to 20 characters")
+		}
+		updates["currency"] = currency
 	}
 	if value, exists := updates["expired_at"]; exists {
 		switch typed := value.(type) {

@@ -83,6 +83,7 @@ import {
 } from "@/components/admin/SettingCard";
 import { useSettings } from "@/lib/api";
 import { SelectOrInput } from "@/components/ui/select-or-input";
+import { COMMON_CURRENCIES, normalizeCurrencyInput } from "@/utils/currency";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import { copyText } from "@/utils/clipboard";
 
@@ -3242,7 +3243,9 @@ function BillingButton({ node }: { node: NodeDetail }) {
   const [autoRenewal, setAutoRenewal] = React.useState<boolean>(
     node.auto_renewal || false,
   );
-  const [currency, setCurrency] = React.useState<string>(node.currency || "$");
+  const [currency, setCurrency] = React.useState<string>(
+    normalizeCurrencyInput(node.currency || "USD"),
+  );
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -3264,7 +3267,9 @@ function BillingButton({ node }: { node: NodeDetail }) {
       const expiredAt = expiredAtValue
         ? new Date(`${expiredAtValue}T00:00:00Z`).toISOString()
         : null;
-      const currencyValue = (formData.get("currency") as string) || "$";
+      const currencyValue = normalizeCurrencyInput(
+        (formData.get("currency") as string) || currency || "USD",
+      );
 
       await fetch(`/api/admin/client/${node.uuid}/edit`, {
         method: "POST",
@@ -3316,10 +3321,14 @@ function BillingButton({ node }: { node: NodeDetail }) {
                 {t("admin.nodeTable.currencyTips")}
               </label>
             </label>
-            <TextField.Root
+            <SelectOrInput
+              options={[...COMMON_CURRENCIES]}
               name="currency"
-              defaultValue={currency}
-              onChange={(e) => setCurrency(e.target.value)}
+              value={currency}
+              allowCustomInput
+              placeholder="USD / CAD / CNY / JPY"
+              onChange={(value) => setCurrency(value.toUpperCase())}
+              onBlur={() => setCurrency(normalizeCurrencyInput(currency))}
             />
 
             <label className="font-bold flex items-center gap-1">
