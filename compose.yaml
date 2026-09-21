@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        KOMARI_VERSION: ${KOMARI_VERSION:-0.1.0}
     image: ${KOMARI_IMAGE:-komari-air:local}
     restart: unless-stopped
     environment:

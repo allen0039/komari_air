@@ -14,10 +14,25 @@ $ServiceName = "komari-agent"
 $GitHubProxy = ""
 $KomariArgs = @()
 $InstallVersion = ""
+$PanelEndpoint = ""
 
 # Parse script arguments
 for ($i = 0; $i -lt $args.Count; $i++) {
     switch ($args[$i]) {
+        "-e" {
+            $PanelEndpoint = $args[$i + 1]
+            $KomariArgs += $args[$i]
+            $KomariArgs += $args[$i + 1]
+            $i++
+            continue
+        }
+        "--endpoint" {
+            $PanelEndpoint = $args[$i + 1]
+            $KomariArgs += $args[$i]
+            $KomariArgs += $args[$i + 1]
+            $i++
+            continue
+        }
         "--install-dir" { $InstallDir = $args[$i + 1]; $i++; continue }
         "--install-service-name" { $ServiceName = $args[$i + 1]; $i++; continue }
         "--install-ghproxy" { $GitHubProxy = $args[$i + 1]; $i++; continue }
@@ -248,42 +263,49 @@ function Get-LatestSnapshotVersion {
     throw "No snapshot release contains asset $AssetName."
 }
 
-$versionToInstall = ""
-if ($InstallVersion -ne "") {
-    Log-Info "Attempting to install specified version: $InstallVersion"
-    if ($InstallVersion -ieq "snapshot") {
-        Log-Info "Resolving the latest snapshot version..."
-        try {
-            $versionToInstall = Get-LatestSnapshotVersion -AssetName $BinaryName
-            Log-Success "Latest snapshot version fetched: $versionToInstall"
+if ($PanelEndpoint -ne "") {
+    $PanelEndpoint = $PanelEndpoint.TrimEnd('/')
+    $versionToInstall = "panel-managed"
+    $DownloadUrl = "$PanelEndpoint/api/public/agent/download/windows/$arch"
+    Log-Info "Using panel-managed Agent build from: $PanelEndpoint"
+}
+else {
+    $versionToInstall = ""
+    if ($InstallVersion -ne "") {
+        Log-Info "Attempting to install specified version: $InstallVersion"
+        if ($InstallVersion -ieq "snapshot") {
+            Log-Info "Resolving the latest snapshot version..."
+            try {
+                $versionToInstall = Get-LatestSnapshotVersion -AssetName $BinaryName
+                Log-Success "Latest snapshot version fetched: $versionToInstall"
+            }
+            catch {
+                Log-Error "Failed to resolve the latest snapshot version: $_"
+                exit 1
+            }
         }
-        catch {
-            Log-Error "Failed to resolve the latest snapshot version: $_"
-            exit 1
+        else {
+            $versionToInstall = $InstallVersion
         }
     }
     else {
-        $versionToInstall = $InstallVersion
+        $ApiUrl = "https://api.github.com/repos/komari-monitor/komari-agent/releases/latest"
+        try {
+            Log-Step "Fetching latest release version from GitHub API..."
+            $release = Invoke-RestMethod -Uri $ApiUrl -UseBasicParsing
+            $versionToInstall = $release.tag_name
+            Log-Success "Latest version fetched: $versionToInstall"
+        }
+        catch {
+            Log-Error "Failed to fetch latest version: $_"
+            exit 1
+        }
     }
-}
-else {
-    $ApiUrl = "https://api.github.com/repos/komari-monitor/komari-agent/releases/latest"
-    try {
-        Log-Step "Fetching latest release version from GitHub API..."
-        $release = Invoke-RestMethod -Uri $ApiUrl -UseBasicParsing
-        $versionToInstall = $release.tag_name
-        Log-Success "Latest version fetched: $versionToInstall"
-    }
-    catch {
-        Log-Error "Failed to fetch latest version: $_"
-        exit 1
-    }
-}
-Log-Success "Installing Komari Agent version: $versionToInstall"
+    Log-Success "Installing Komari Agent version: $versionToInstall"
 
-# Construct download URL
-$BinaryName = "komari-agent-windows-$arch.exe"
-$DownloadUrl = if ($GitHubProxy) { "$GitHubProxy/https://github.com/komari-monitor/komari-agent/releases/download/$versionToInstall/$BinaryName" } else { "https://github.com/komari-monitor/komari-agent/releases/download/$versionToInstall/$BinaryName" }
+    $BinaryName = "komari-agent-windows-$arch.exe"
+    $DownloadUrl = if ($GitHubProxy) { "$GitHubProxy/https://github.com/komari-monitor/komari-agent/releases/download/$versionToInstall/$BinaryName" } else { "https://github.com/komari-monitor/komari-agent/releases/download/$versionToInstall/$BinaryName" }
+}
 
 # Download and install
 New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null

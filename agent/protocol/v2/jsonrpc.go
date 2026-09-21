@@ -6,16 +6,18 @@ import (
 )
 
 const (
-	Version               = "2.0"
-	MethodAgentReport     = "agent.report"
-	MethodAgentBasicInfo  = "agent.basicInfo"
-	MethodAgentPingResult = "agent.pingResult"
-	MethodAgentTaskResult = "agent.taskResult"
-	MethodAgentExec       = "agent.exec"
-	MethodAgentPing       = "agent.ping"
-	MethodAgentMessage    = "agent.message"
-	MethodAgentEvent      = "agent.event"
-	MethodAgentPull       = "agent.pull"
+	Version                 = "2.0"
+	MethodAgentReport       = "agent.report"
+	MethodAgentBasicInfo    = "agent.basicInfo"
+	MethodAgentPingResult   = "agent.pingResult"
+	MethodAgentTaskResult   = "agent.taskResult"
+	MethodAgentExec         = "agent.exec"
+	MethodAgentPing         = "agent.ping"
+	MethodAgentMessage      = "agent.message"
+	MethodAgentEvent        = "agent.event"
+	MethodAgentPull         = "agent.pull"
+	MethodAgentConfigSet    = "agent.config.set"
+	MethodAgentConfigReport = "agent.config.report"
 )
 
 type Request struct {
@@ -36,6 +38,29 @@ type RPCError struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
+}
+
+type AgentManagedConfig struct {
+	DisableAutoUpdate  bool    `json:"disable_auto_update"`
+	Interval           float64 `json:"interval"`
+	MonthRotate        int     `json:"month_rotate"`
+	IncludeNics        string  `json:"include_nics"`
+	ExcludeNics        string  `json:"exclude_nics"`
+	IncludeMountpoints string  `json:"include_mountpoints"`
+	MemoryIncludeCache bool    `json:"memory_include_cache"`
+	GetIPAddrFromNic   bool    `json:"get_ip_addr_from_nic"`
+}
+
+type ConfigSetParams struct {
+	Revision uint64             `json:"revision"`
+	Config   AgentManagedConfig `json:"config"`
+}
+
+type ConfigReportParams struct {
+	Revision uint64             `json:"revision"`
+	Status   string             `json:"status"`
+	Config   AgentManagedConfig `json:"config"`
+	Error    string             `json:"error,omitempty"`
 }
 
 type TaskResultParams struct {
@@ -68,12 +93,12 @@ func NewRequest(id interface{}, method string, params interface{}) []byte {
 	return payload
 }
 
-func BuildReportPayload(report []byte) []byte {
-	return NewNotification(MethodAgentReport, reportParams{Report: json.RawMessage(report)})
+func BuildReportPayload(report []byte, capabilities []string) []byte {
+	return NewNotification(MethodAgentReport, reportParams{Report: json.RawMessage(report), Capabilities: capabilities})
 }
 
-func BuildReportRequest(id interface{}, report []byte, ackEventIDs []string) []byte {
-	return NewRequest(id, MethodAgentReport, reportParams{Report: json.RawMessage(report), AckEventIDs: ackEventIDs})
+func BuildReportRequest(id interface{}, report []byte, ackEventIDs []string, capabilities []string) []byte {
+	return NewRequest(id, MethodAgentReport, reportParams{Report: json.RawMessage(report), AckEventIDs: ackEventIDs, Capabilities: capabilities})
 }
 
 func BuildBasicInfoPayload(info map[string]interface{}) []byte {
@@ -81,8 +106,9 @@ func BuildBasicInfoPayload(info map[string]interface{}) []byte {
 }
 
 type reportParams struct {
-	Report      json.RawMessage `json:"report"`
-	AckEventIDs []string        `json:"ack_event_ids,omitempty"`
+	Report       json.RawMessage `json:"report"`
+	AckEventIDs  []string        `json:"ack_event_ids,omitempty"`
+	Capabilities []string        `json:"capabilities,omitempty"`
 }
 
 func BuildPingResultPayload(taskID uint, pingType string, value int, finishedAt time.Time) interface{} {

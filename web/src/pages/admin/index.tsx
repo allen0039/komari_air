@@ -84,6 +84,7 @@ import {
 import { useSettings } from "@/lib/api";
 import { SelectOrInput } from "@/components/ui/select-or-input";
 import { useRPC2Call } from "@/contexts/RPC2Context";
+import { copyText } from "@/utils/clipboard";
 
 
 const NodeDetailsPage = () => {
@@ -364,24 +365,13 @@ const AutoDiscoverySection = ({
     if (selectedPlatform === "windows") {
       scriptFile = "install.ps1";
     }
-    let scriptUrl = `https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/${scriptFile}`;
-    if (enableGhproxy && ghproxy) {
-      scriptUrl = scriptUrl.slice(8); // 去掉 https://
-      if (ghproxy.endsWith("/")) {
-        scriptUrl = `${ghproxy}${scriptUrl}`;
-      } else {
-        scriptUrl = `${ghproxy}/${scriptUrl}`;
-      }
-      if (!scriptUrl.startsWith("http")) {
-        scriptUrl = `http://${scriptUrl}`;
-      }
-    }
+    const scriptUrl = `${host}/api/public/agent/${scriptFile}`;
 
     let finalCommand = "";
     switch (selectedPlatform) {
       case "linux":
         finalCommand =
-          `wget -qO- ${quoteShellArg(scriptUrl)} | sudo bash -s -- ` +
+          `bash <(curl -sL ${quoteShellArg(scriptUrl)}) ` +
           quoteShellArgs(args);
         break;
       case "windows":
@@ -419,12 +409,18 @@ const AutoDiscoverySection = ({
         // 自动发现会在 /app/auto-discovery.json 写入注册得到的 uuid/token，
         // 通过 bind mount 持久化该文件，容器更新重建后复用同一身份，避免重复注册。
         // 注意：文件挂载要求宿主机上文件已存在，否则 Docker 会将其创建为目录。
+        const runner =
+          `set -e; apk add --no-cache ca-certificates wget >/dev/null; ` +
+          `case "$(uname -m)" in x86_64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;; esac; ` +
+          `wget -qO /app/agent "$KOMARI_PANEL/api/public/agent/download/linux/$arch"; ` +
+          `chmod +x /app/agent; exec /app/agent ` +
+          quoteShellArgs(dockerArgs);
         finalCommand =
           `touch .komari-auto-discovery.json && ` +
           `docker run -d --name komari-agent --restart=always ` +
           `-v .komari-auto-discovery.json:/app/auto-discovery.json ` +
-          `ghcr.io/komari-monitor/komari-agent:latest ` +
-          quoteShellArgs(dockerArgs);
+          `-e KOMARI_PANEL=${quoteShellArg(host)} alpine:3.22 sh -c ` +
+          quoteShellArg(runner);
         break;
       }
     }
@@ -432,11 +428,11 @@ const AutoDiscoverySection = ({
   };
 
   const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
+    const ok = await copyText(text);
+    if (ok) {
       toast.success(t("copy_success", "已复制到剪贴板"));
-    } catch (err) {
-      console.error("Failed to copy text: ", err);
+    } else {
+      toast.error(t("copy_failed", "复制失败，请手动复制"));
     }
   };
 
@@ -1033,7 +1029,7 @@ const AutoDiscoverySection = ({
           {t("admin.nodeTable.generatedCommand", "指令")}
         </label>
         <TextArea
-          disabled
+          readOnly
           className="w-full"
           style={{ minHeight: "80px" }}
           value={generateCommand()}
@@ -1158,9 +1154,13 @@ const SortableRow = ({
     transform: CSS.Transform.toString(transform),
     transition,
   };
-  function copy(text: string) {
-    navigator.clipboard.writeText(text);
-    toast.success(t("copy_success"));
+  async function copy(text: string) {
+    const ok = await copyText(text);
+    if (ok) {
+      toast.success(t("copy_success", "已复制到剪贴板"));
+    } else {
+      toast.error(t("copy_failed", "复制失败，请手动复制"));
+    }
   }
   return (
     <TableRow ref={setNodeRef} style={style} className="hover:bg-accent-a2">
@@ -1427,6 +1427,359 @@ const NodeTable = ({
 };
 
 type Platform = "linux" | "windows" | "macos" | "docker";
+
+type ManagedAgentConfig = {
+  disable_auto_update: boolean;
+  interval: number;
+  month_rotate: number;
+  include_nics: string;
+  exclude_nics: string;
+  include_mountpoints: string;
+  memory_include_cache: boolean;
+  get_ip_addr_from_nic: boolean;
+};
+
+type ManagedAgentConfigState = {
+  uuid: string;
+  desired: ManagedAgentConfig;
+  reported: ManagedAgentConfig;
+  has_desired: boolean;
+  has_reported: boolean;
+  desired_revision: number;
+  reported_revision: number;
+  status: string;
+  last_error?: string;
+  last_synced_at?: string | null;
+  supported: boolean;
+  online: boolean;
+};
+
+type ManagedAgentConfigField =
+  | "interval"
+  | "monthRotate"
+  | "includeNics"
+  | "excludeNics"
+  | "includeMountpoints";
+
+const defaultManagedAgentConfig: ManagedAgentConfig = {
+  disable_auto_update: false,
+  interval: 3,
+  month_rotate: 0,
+  include_nics: "",
+  exclude_nics: "",
+  include_mountpoints: "",
+  memory_include_cache: false,
+  get_ip_addr_from_nic: false,
+};
+
+function AgentConfigButton({ node }: { node: NodeDetail }) {
+  const { t } = useTranslation();
+  const { call } = useRPC2Call();
+  const [open, setOpen] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [state, setState] = React.useState<ManagedAgentConfigState | null>(null);
+  const [form, setForm] = React.useState<ManagedAgentConfig>(defaultManagedAgentConfig);
+  const [enabledFields, setEnabledFields] = React.useState<Record<ManagedAgentConfigField, boolean>>({
+    interval: true,
+    monthRotate: false,
+    includeNics: false,
+    excludeNics: false,
+    includeMountpoints: false,
+  });
+
+  const load = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const next = await call<{ uuid: string }, ManagedAgentConfigState>(
+        "admin:getAgentConfig",
+        { uuid: node.uuid }
+      );
+      setState(next);
+      const base = next.has_desired
+        ? next.desired
+        : next.has_reported
+          ? next.reported
+          : defaultManagedAgentConfig;
+      const config = { ...defaultManagedAgentConfig, ...base };
+      setForm(config);
+      setEnabledFields({
+        interval: true,
+        monthRotate: config.month_rotate !== 0,
+        includeNics: Boolean(config.include_nics),
+        excludeNics: Boolean(config.exclude_nics),
+        includeMountpoints: Boolean(config.include_mountpoints),
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLoading(false);
+    }
+  }, [call, node.uuid]);
+
+  React.useEffect(() => {
+    if (open) void load();
+  }, [open, load]);
+
+  const save = async () => {
+    if (!Number.isFinite(form.interval) || form.interval < 1 || form.interval > 3600) {
+      toast.error(t("admin.agentConfig.invalidInterval", "采集间隔必须为 1–3600 秒"));
+      return;
+    }
+    if (!Number.isInteger(form.month_rotate) || form.month_rotate < 0 || form.month_rotate > 31) {
+      toast.error(t("admin.agentConfig.invalidMonthRotate", "网络统计月重置日必须为 0–31"));
+      return;
+    }
+    setSaving(true);
+    try {
+      const next = await call<any, ManagedAgentConfigState>(
+        "admin:updateAgentConfig",
+        { uuid: node.uuid, config: form }
+      );
+      setState(next);
+      toast.success(
+        next.online
+          ? t("admin.agentConfig.savedSyncing", "配置已保存，正在同步到 Agent")
+          : t("admin.agentConfig.savedOffline", "配置已保存，将在 Agent 上线后自动同步")
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const retry = async () => {
+    try {
+      const next = await call<any, ManagedAgentConfigState>(
+        "admin:retryAgentConfigSync",
+        { uuid: node.uuid }
+      );
+      setState(next);
+      toast.success(t("admin.agentConfig.retrySent", "已重新发起同步"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const statusText = (() => {
+    if (!state) return "";
+    if (!state.supported && state.online) {
+      return t("admin.agentConfig.unsupported", "当前 Agent 尚未支持远程配置，请先更新 Agent");
+    }
+    if (state.status === "error") return t("admin.agentConfig.syncError", "同步失败");
+    if (state.desired_revision > state.reported_revision) {
+      return state.online
+        ? t("admin.agentConfig.syncing", "同步中")
+        : t("admin.agentConfig.pendingOffline", "等待 Agent 上线同步");
+    }
+    if (state.status === "synced") return t("admin.agentConfig.synced", "已同步");
+    return t("admin.agentConfig.unknown", "尚未同步");
+  })();
+
+  return (
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Trigger>
+        <IconButton
+          variant="ghost"
+          title={t("admin.agentConfig.title", "Agent 设置")}
+          aria-label={t("admin.agentConfig.title", "Agent 设置")}
+        >
+          <Settings size="18" />
+        </IconButton>
+      </Dialog.Trigger>
+      <Dialog.Content style={{ maxWidth: 860 }}>
+        <Dialog.Title>{t("admin.agentConfig.title", "Agent 设置")} · {node.name}</Dialog.Title>
+        {loading ? (
+          <Loading text="" />
+        ) : (
+          <Flex direction="column" gap="4">
+            {state && (
+              <Callout.Root color={state.status === "error" ? "red" : state.desired_revision > state.reported_revision ? "amber" : "green"}>
+                <Callout.Text>
+                  {statusText}
+                  {" · "}
+                  {t("admin.agentConfig.targetRevision", "面板配置修订")} {state.desired_revision}
+                  {" / "}
+                  {t("admin.agentConfig.reportedRevision", "Agent 已应用修订")} {state.reported_revision}
+                  {state.last_error ? ` · ${state.last_error}` : ""}
+                </Callout.Text>
+              </Callout.Root>
+            )}
+
+            <div>
+              <Text as="div" weight="bold" size="3" mb="2">
+                {t("admin.nodeTable.installOptions", "安装选项")}
+              </Text>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                <Flex gap="2" align="center">
+                  <Checkbox
+                    checked={form.disable_auto_update}
+                    onCheckedChange={(checked) =>
+                      setForm((prev) => ({ ...prev, disable_auto_update: Boolean(checked) }))
+                    }
+                  />
+                  <label className="text-sm font-normal cursor-pointer" onClick={() =>
+                    setForm((prev) => ({ ...prev, disable_auto_update: !prev.disable_auto_update }))
+                  }>
+                    {t("admin.nodeTable.disableAutoUpdate", "禁用自动更新")}
+                  </label>
+                </Flex>
+                <Flex gap="2" align="center">
+                  <Checkbox
+                    checked={form.memory_include_cache}
+                    onCheckedChange={(checked) =>
+                      setForm((prev) => ({ ...prev, memory_include_cache: Boolean(checked) }))
+                    }
+                  />
+                  <label className="text-sm font-normal cursor-pointer" onClick={() =>
+                    setForm((prev) => ({ ...prev, memory_include_cache: !prev.memory_include_cache }))
+                  }>
+                    {t("admin.nodeTable.memoryIncludeCache", "包含缓冲区内存")}
+                  </label>
+                  <Tips size="14">{t("admin.nodeTable.memoryModeAvailable_tip")}</Tips>
+                </Flex>
+                <Flex gap="2" align="center">
+                  <Checkbox
+                    checked={form.get_ip_addr_from_nic}
+                    onCheckedChange={(checked) =>
+                      setForm((prev) => ({ ...prev, get_ip_addr_from_nic: Boolean(checked) }))
+                    }
+                  />
+                  <label className="text-sm font-normal cursor-pointer" onClick={() =>
+                    setForm((prev) => ({ ...prev, get_ip_addr_from_nic: !prev.get_ip_addr_from_nic }))
+                  }>
+                    {t("admin.nodeTable.getIpAddrFromNic", "从网卡获取 IP 地址")}
+                  </label>
+                </Flex>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+              <div>
+                <label className="mb-1 flex items-center gap-2 text-sm font-bold cursor-pointer">
+                  <Checkbox checked={enabledFields.interval} onCheckedChange={(checked) => {
+                    const enabled = Boolean(checked);
+                    setEnabledFields((prev) => ({ ...prev, interval: enabled }));
+                    if (!enabled) setForm((prev) => ({ ...prev, interval: 3 }));
+                  }} />
+                  {t("admin.nodeTable.interval", "采集间隔（秒）")}
+                </label>
+                {enabledFields.interval && (
+                  <TextField.Root
+                    type="number"
+                    min="1"
+                    max="3600"
+                    step="0.5"
+                    value={String(form.interval)}
+                    onChange={(e) => setForm((prev) => ({ ...prev, interval: Number(e.target.value) }))}
+                  />
+                )}
+              </div>
+
+              <div>
+                <label className="mb-1 flex items-center gap-2 text-sm font-bold cursor-pointer">
+                  <Checkbox checked={enabledFields.monthRotate} onCheckedChange={(checked) => {
+                    const enabled = Boolean(checked);
+                    setEnabledFields((prev) => ({ ...prev, monthRotate: enabled }));
+                    setForm((prev) => ({ ...prev, month_rotate: enabled ? Math.max(prev.month_rotate, 1) : 0 }));
+                  }} />
+                  {t("admin.nodeTable.monthRotate", "网络统计月重置日")}
+                </label>
+                {enabledFields.monthRotate && (
+                  <>
+                    <TextField.Root
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={String(form.month_rotate)}
+                      onChange={(e) => setForm((prev) => ({ ...prev, month_rotate: Number(e.target.value) }))}
+                    />
+                    <Text as="div" size="1" color="gray" mt="1">
+                      {t("admin.agentConfig.monthRotateDesc", "1–31 表示每月重置日，0 表示禁用月度网络统计")}
+                    </Text>
+                  </>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-1 flex items-center gap-2 text-sm font-bold cursor-pointer">
+                  <Checkbox checked={enabledFields.includeNics} onCheckedChange={(checked) => {
+                    const enabled = Boolean(checked);
+                    setEnabledFields((prev) => ({ ...prev, includeNics: enabled }));
+                    if (!enabled) setForm((prev) => ({ ...prev, include_nics: "" }));
+                  }} />
+                  {t("admin.nodeTable.includeNics", "只监测特定网卡")}
+                </label>
+                {enabledFields.includeNics && (
+                  <TextField.Root
+                    value={form.include_nics}
+                    placeholder="eth0,ens*"
+                    onChange={(e) => setForm((prev) => ({ ...prev, include_nics: e.target.value }))}
+                  />
+                )}
+              </div>
+
+              <div>
+                <label className="mb-1 flex items-center gap-2 text-sm font-bold cursor-pointer">
+                  <Checkbox checked={enabledFields.excludeNics} onCheckedChange={(checked) => {
+                    const enabled = Boolean(checked);
+                    setEnabledFields((prev) => ({ ...prev, excludeNics: enabled }));
+                    if (!enabled) setForm((prev) => ({ ...prev, exclude_nics: "" }));
+                  }} />
+                  {t("admin.nodeTable.excludeNics", "排除特定网卡")}
+                </label>
+                {enabledFields.excludeNics && (
+                  <TextField.Root
+                    value={form.exclude_nics}
+                    placeholder="lo,docker*"
+                    onChange={(e) => setForm((prev) => ({ ...prev, exclude_nics: e.target.value }))}
+                  />
+                )}
+              </div>
+
+              <div className="col-span-2">
+                <label className="mb-1 flex items-center gap-2 text-sm font-bold cursor-pointer">
+                  <Checkbox checked={enabledFields.includeMountpoints} onCheckedChange={(checked) => {
+                    const enabled = Boolean(checked);
+                    setEnabledFields((prev) => ({ ...prev, includeMountpoints: enabled }));
+                    if (!enabled) setForm((prev) => ({ ...prev, include_mountpoints: "" }));
+                  }} />
+                  {t("admin.nodeTable.includeMountpoints", "只监测特定挂载点")}
+                </label>
+                {enabledFields.includeMountpoints && (
+                  <TextField.Root
+                    value={form.include_mountpoints}
+                    placeholder="/;/data"
+                    onChange={(e) => setForm((prev) => ({ ...prev, include_mountpoints: e.target.value }))}
+                  />
+                )}
+              </div>
+            </div>
+
+            <Text size="1" color="gray">
+              {t("admin.agentConfig.installOnlyHint", "安装目录、服务名称、安装版本和 GitHub 代理仅在部署时生效；需要修改请重新部署 Agent。")}
+            </Text>
+
+            <Flex gap="2" justify="end">
+              {state && state.desired_revision > state.reported_revision && (
+                <Button variant="soft" onClick={retry}>
+                  {t("admin.agentConfig.retry", "重新同步")}
+                </Button>
+              )}
+              <Button onClick={save} disabled={saving}>
+                {saving
+                  ? t("admin.nodeEdit.waiting", "等待...")
+                  : t("admin.agentConfig.saveSync", "保存并同步")}
+              </Button>
+            </Flex>
+          </Flex>
+        )}
+      </Dialog.Content>
+    </Dialog.Root>
+  );
+}
+
 const ActionButtons = ({
   node,
   settings,
@@ -1438,6 +1791,7 @@ const ActionButtons = ({
 }) => {
   return (
     <div className="flex items-center gap-4">
+      <AgentConfigButton node={node} />
       <GenerateCommandButton
         node={node}
         settings={settings}
@@ -1652,26 +2006,12 @@ function GenerateCommandButton({
     if (selectedPlatform === "windows") {
       scriptFile = "install.ps1";
     }
-    let scriptUrl =
-      `https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/${scriptFile}`;
-    if (enableGhproxy) {
-      if (enableGhproxy && ghproxy) {
-        scriptUrl = scriptUrl.slice(8); // 去掉 https://
-        if (ghproxy.endsWith("/")) {
-          scriptUrl = `${ghproxy}${scriptUrl}`;
-        } else {
-          scriptUrl = `${ghproxy}/${scriptUrl}`;
-        }
-        if (!scriptUrl.startsWith("http")) {
-          scriptUrl = `http://${scriptUrl}`;
-        }
-      }
-    }
+    const scriptUrl = `${host}/api/public/agent/${scriptFile}`;
     let finalCommand = "";
     switch (selectedPlatform) {
       case "linux":
         finalCommand =
-          `wget -qO- ${quoteShellArg(scriptUrl)} | sudo bash -s -- ` +
+          `bash <(curl -sL ${quoteShellArg(scriptUrl)}) ` +
           quoteShellArgs(args);
         break;
       case "windows":
@@ -1705,10 +2045,16 @@ function GenerateCommandButton({
           }
           dockerArgs.push(args[i]);
         }
+        const runner =
+          `set -e; apk add --no-cache ca-certificates wget >/dev/null; ` +
+          `case "$(uname -m)" in x86_64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;; esac; ` +
+          `wget -qO /app/agent "$KOMARI_PANEL/api/public/agent/download/linux/$arch"; ` +
+          `chmod +x /app/agent; exec /app/agent ` +
+          quoteShellArgs(dockerArgs);
         finalCommand =
           `docker run -d --name komari-agent --restart=always ` +
-          `ghcr.io/komari-monitor/komari-agent:latest ` +
-          quoteShellArgs(dockerArgs);
+          `-e KOMARI_PANEL=${quoteShellArg(host)} alpine:3.22 sh -c ` +
+          quoteShellArg(runner);
         break;
       }
     }
@@ -1716,11 +2062,11 @@ function GenerateCommandButton({
   };
 
   const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
+    const ok = await copyText(text);
+    if (ok) {
       toast.success(t("copy_success", "已复制到剪贴板"));
-    } catch (err) {
-      console.error("Failed to copy text: ", err);
+    } else {
+      toast.error(t("copy_failed", "复制失败，请手动复制"));
     }
   };
   const { t } = useTranslation();
@@ -2314,7 +2660,7 @@ function GenerateCommandButton({
             </label>
             <div className="relative">
               <TextArea
-                disabled
+                readOnly
                 className="w-full"
                 style={{ minHeight: "80px" }}
                 value={generateCommand()}
@@ -2539,6 +2885,14 @@ function EditButton({ node }: { node: NodeDetail }) {
 function DetailView({ node }: { node: NodeDetail }) {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
+  const copy = React.useCallback(async (text: string) => {
+    const ok = await copyText(text);
+    if (ok) {
+      toast.success(t("copy_success", "已复制到剪贴板"));
+    } else {
+      toast.error(t("copy_failed", "复制失败，请手动复制"));
+    }
+  }, [t]);
 
   return (
     <Drawer direction={isMobile ? "bottom" : "right"}>
@@ -2576,7 +2930,7 @@ function DetailView({ node }: { node: NodeDetail }) {
                         className="size-5"
                         type="button"
                         onClick={() => {
-                          navigator.clipboard.writeText(node.ipv4!);
+                          void copy(node.ipv4!);
                         }}
                       >
                         <Copy size={16} />
@@ -2596,7 +2950,7 @@ function DetailView({ node }: { node: NodeDetail }) {
                         className="size-5"
                         type="button"
                         onClick={() => {
-                          navigator.clipboard.writeText(node.ipv6!);
+                          void copy(node.ipv6!);
                         }}
                       >
                         <Copy size={16} />

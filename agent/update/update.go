@@ -1,6 +1,7 @@
 package update
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/blang/semver"
@@ -22,9 +24,14 @@ import (
 var ErrRestartRequired = errors.New("update installed; restart required")
 
 var (
-	CurrentVersion string = "0.0.1"
+	CurrentVersion string = "0.1.0"
 	Repo           string = "komari-monitor/komari-agent"
+	PanelBaseURL   string
 )
+
+func SetPanelBaseURL(baseURL string) {
+	PanelBaseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+}
 
 const (
 	snapshotVersionPrefix = "Snapshot-"
@@ -250,6 +257,80 @@ func selfUpdateReleaseFromSnapshot(owner, repo string, candidate snapshotRelease
 	}
 }
 
+var autoUpdateManager struct {
+	sync.Mutex
+	cancel            context.CancelFunc
+	running           bool
+	onRestartRequired func()
+	generation        uint64
+}
+
+func SetAutoUpdateEnabled(enabled bool, onRestartRequired func()) {
+	autoUpdateManager.Lock()
+	if onRestartRequired != nil {
+		autoUpdateManager.onRestartRequired = onRestartRequired
+	}
+	if !enabled {
+		if autoUpdateManager.cancel != nil {
+			autoUpdateManager.cancel()
+		}
+		autoUpdateManager.cancel = nil
+		autoUpdateManager.running = false
+		autoUpdateManager.Unlock()
+		return
+	}
+	if autoUpdateManager.running {
+		autoUpdateManager.Unlock()
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	autoUpdateManager.cancel = cancel
+	autoUpdateManager.running = true
+	autoUpdateManager.generation++
+	generation := autoUpdateManager.generation
+	callback := autoUpdateManager.onRestartRequired
+	autoUpdateManager.Unlock()
+
+	go func() {
+		defer func() {
+			autoUpdateManager.Lock()
+			if autoUpdateManager.generation == generation {
+				autoUpdateManager.cancel = nil
+				autoUpdateManager.running = false
+			}
+			autoUpdateManager.Unlock()
+		}()
+		check := func() bool {
+			err := CheckAndUpdate()
+			if errors.Is(err, ErrRestartRequired) {
+				if callback != nil {
+					callback()
+				}
+				return false
+			}
+			if err != nil {
+				log.Println("[ERROR]", err)
+			}
+			return true
+		}
+		if !check() {
+			return
+		}
+		ticker := time.NewTicker(6 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if !check() {
+					return
+				}
+			}
+		}
+	}()
+}
+
 func DoUpdateWorks(onRestartRequired func()) {
 	ticker_ := time.NewTicker(time.Duration(6) * time.Hour)
 	defer ticker_.Stop()
@@ -335,9 +416,61 @@ func checkAndUpdateSnapshot(updater selfUpdater, listReleases releaseLister, isC
 	return ErrRestartRequired
 }
 
+func checkPanelUpdate() error {
+	if PanelBaseURL == "" {
+		return nil
+	}
+	client := dnsresolver.GetHTTPClient(60 * time.Second)
+	versionURL := PanelBaseURL + "/api/public/agent/version"
+	resp, err := client.Get(versionURL)
+	if err != nil {
+		return fmt.Errorf("failed to query panel agent version: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("panel agent version returned status %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if err != nil {
+		return fmt.Errorf("failed to read panel agent version: %w", err)
+	}
+	latest := strings.TrimSpace(string(body))
+	if latest == "" {
+		return fmt.Errorf("panel returned an empty agent version")
+	}
+	if latest == CurrentVersion {
+		log.Println("Current version is the latest panel build:", CurrentVersion)
+		return nil
+	}
+
+	cmdPath, err := currentExecutablePath()
+	if err != nil {
+		return fmt.Errorf("failed to resolve current executable path: %w", err)
+	}
+	downloadURL := fmt.Sprintf("%s/api/public/agent/download/%s/%s", PanelBaseURL, runtime.GOOS, runtime.GOARCH)
+	updater, err := selfupdate.NewUpdater(selfupdate.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to create updater: %w", err)
+	}
+	release := &selfupdate.Release{
+		Version:           semver.Version{},
+		AssetURL:          downloadURL,
+		ValidationAssetID: -1,
+	}
+	log.Printf("Updating agent from panel build %s to %s", CurrentVersion, latest)
+	if err := updater.UpdateTo(release, cmdPath); err != nil {
+		return fmt.Errorf("failed to install panel agent build %s: %w", latest, err)
+	}
+	log.Printf("Successfully updated to panel agent build %s", latest)
+	return ErrRestartRequired
+}
+
 // 检查更新并执行自动更新
 func CheckAndUpdate() error {
 	log.Println("Checking update...")
+	if PanelBaseURL != "" {
+		return checkPanelUpdate()
+	}
 
 	http.DefaultClient = dnsresolver.GetHTTPClient(60 * time.Second)
 	updater, err := selfupdate.NewUpdater(selfupdate.Config{})

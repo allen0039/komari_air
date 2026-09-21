@@ -23,9 +23,27 @@ type v2EventQueue struct {
 }
 
 var (
-	v2EventMu     sync.Mutex
-	v2EventQueues = make(map[string]*v2EventQueue)
+	v2EventMu              sync.Mutex
+	v2EventQueues          = make(map[string]*v2EventQueue)
+	v2CapabilitiesByClient = make(map[string]map[string]struct{})
 )
+
+func SetV2Capabilities(uuid string, capabilities []string) {
+	v2EventMu.Lock()
+	defer v2EventMu.Unlock()
+	set := make(map[string]struct{}, len(capabilities))
+	for _, capability := range capabilities {
+		set[capability] = struct{}{}
+	}
+	v2CapabilitiesByClient[uuid] = set
+}
+
+func HasV2Capability(uuid, capability string) bool {
+	v2EventMu.Lock()
+	defer v2EventMu.Unlock()
+	_, ok := v2CapabilitiesByClient[uuid][capability]
+	return ok
+}
 
 func getV2EventQueueLocked(uuid string) *v2EventQueue {
 	q := v2EventQueues[uuid]
@@ -123,6 +141,9 @@ func coalesceV2EventLocked(q *v2EventQueue, event v2.Event) {
 }
 
 func v2EventCoalesceKey(event v2.Event) string {
+	if event.Method == v2.MethodAgentConfigSet {
+		return event.Method
+	}
 	if event.Method != v2.MethodAgentPing {
 		return ""
 	}

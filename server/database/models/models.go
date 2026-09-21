@@ -44,6 +44,20 @@ type Client struct {
 	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
+// AgentConfig stores desired and reported managed runtime configuration for one agent.
+type AgentConfig struct {
+	UUID             string     `json:"uuid" gorm:"type:varchar(36);primaryKey"`
+	DesiredConfig    string     `json:"desired_config" gorm:"type:longtext"`
+	DesiredRevision  uint64     `json:"desired_revision" gorm:"default:0"`
+	ReportedConfig   string     `json:"reported_config" gorm:"type:longtext"`
+	ReportedRevision uint64     `json:"reported_revision" gorm:"default:0"`
+	SyncStatus       string     `json:"sync_status" gorm:"type:varchar(32);default:'unknown'"`
+	LastError        string     `json:"last_error" gorm:"type:longtext"`
+	LastSyncedAt     *time.Time `json:"last_synced_at,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
 // User represents an authenticated user
 type User struct {
 	UUID      string    `json:"uuid,omitempty" gorm:"type:varchar(36);primaryKey"`

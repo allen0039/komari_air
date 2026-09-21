@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/komari-monitor/komari/database/agentconfig"
 	"github.com/komari-monitor/komari/database/clients"
 	"github.com/komari-monitor/komari/database/tasks"
 	v2 "github.com/komari-monitor/komari/protocol/v2"
@@ -42,6 +43,24 @@ func bindV2Params[T any](raw any, target *T) error {
 	return json.Unmarshal(b, target)
 }
 
+func syncManagedAgentConfig(uuid string) {
+	if !agent_runtime.HasV2Capability(uuid, "config:v1") {
+		return
+	}
+	row, err := agentconfig.GetOrCreate(uuid)
+	if err != nil || row.DesiredRevision == 0 || row.DesiredRevision <= row.ReportedRevision {
+		return
+	}
+	desired, ok := agentconfig.Desired(row)
+	if !ok {
+		return
+	}
+	agent_runtime.DispatchV2Event(uuid, v2.MethodAgentConfigSet, v2.ConfigSetParams{
+		Revision: row.DesiredRevision,
+		Config:   desired,
+	})
+}
+
 func handleV2RPC(uuid string, req v2.Request, allowWait bool) v2.Response {
 	if req.JSONRPC != v2.Version {
 		return v2.Error(req.ID, -32600, "invalid jsonrpc version", nil)
@@ -55,6 +74,9 @@ func handleV2RPC(uuid string, req v2.Request, allowWait bool) v2.Response {
 		if err := ingestReport(uuid, params.Report, true); err != nil {
 			return v2.Error(req.ID, -32000, "failed to save report", err.Error())
 		}
+		agent_runtime.MarkV2Client(uuid)
+		agent_runtime.SetV2Capabilities(uuid, params.Capabilities)
+		syncManagedAgentConfig(uuid)
 		return v2.Success(req.ID, gin.H{
 			"status": "success",
 			"events": agent_runtime.TakeV2Events(uuid, params.AckEventIDs, 8),
@@ -90,6 +112,16 @@ func handleV2RPC(uuid string, req v2.Request, allowWait bool) v2.Response {
 			return v2.Error(req.ID, -32000, "failed to save task result", err.Error())
 		}
 		return v2.Success(req.ID, gin.H{"status": "success"})
+	case v2.MethodAgentConfigReport:
+		var params v2.ConfigReportParams
+		if err := bindV2Params(req.Params, &params); err != nil {
+			return v2.Error(req.ID, -32602, "invalid config report params", err.Error())
+		}
+		if _, err := agentconfig.UpdateReported(uuid, params); err != nil {
+			return v2.Error(req.ID, -32000, "failed to save config report", err.Error())
+		}
+		syncManagedAgentConfig(uuid)
+		return v2.Success(req.ID, gin.H{"status": "success"})
 	case v2.MethodAgentPull:
 		var params v2.PullParams
 		if err := bindV2Params(req.Params, &params); err != nil {
@@ -97,6 +129,8 @@ func handleV2RPC(uuid string, req v2.Request, allowWait bool) v2.Response {
 		}
 		refreshPostPresence(uuid)
 		agent_runtime.MarkV2Client(uuid)
+		agent_runtime.SetV2Capabilities(uuid, params.Capabilities)
+		syncManagedAgentConfig(uuid)
 		timeout := 0 * time.Second
 		if allowWait {
 			timeout = 25 * time.Second

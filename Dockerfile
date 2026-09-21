@@ -4,8 +4,32 @@ WORKDIR /src/web
 COPY web/ ./
 RUN npm ci && npm run build
 
+FROM golang:1.25-bookworm AS agent-builder
+
+WORKDIR /src/agent
+ARG KOMARI_VERSION
+RUN test -n "$KOMARI_VERSION"
+COPY agent/go.mod agent/go.sum ./
+RUN go mod download
+COPY agent/ ./
+
+RUN set -eux; \
+    mkdir -p /out; \
+    VERSION="${KOMARI_VERSION}"; \
+    printf '%s' "$VERSION" > /out/version; \
+    for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do \
+      os="${target%/*}"; arch="${target#*/}"; ext=""; \
+      if [ "$os" = "windows" ]; then ext=".exe"; fi; \
+      CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath \
+        -ldflags="-s -w -X github.com/komari-monitor/komari-agent/update.CurrentVersion=$VERSION" \
+        -o "/out/komari-agent-$os-$arch$ext" .; \
+    done; \
+    cp install.sh install.ps1 /out/
+
 FROM golang:1.25-bookworm AS server-builder
 
+ARG KOMARI_VERSION
+RUN test -n "$KOMARI_VERSION"
 RUN apt-get update \
     && apt-get install -y --no-install-recommends zstd \
     && rm -rf /var/lib/apt/lists/*
@@ -21,7 +45,7 @@ COPY --from=web-builder /src/web/komari-theme.json web/public/defaultTheme/komar
 RUN mkdir -p web/public/defaultTheme \
     && tar -cf /tmp/komari-web.tar -C /src/web-dist . \
     && zstd -19 -T0 -f /tmp/komari-web.tar -o web/public/defaultTheme/dist.tar.zst \
-    && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/komari .
+    && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/komari-monitor/komari/utils.CurrentVersion=${KOMARI_VERSION}" -o /out/komari .
 
 FROM debian:bookworm-slim
 
@@ -35,6 +59,7 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY --from=server-builder --chown=komari:komari /out/komari /app/komari
+COPY --from=agent-builder --chown=komari:komari /out/ /app/agent-dist/
 
 ENV GIN_MODE=release
 ENV KOMARI_LISTEN=0.0.0.0:25774

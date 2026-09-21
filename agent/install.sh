@@ -43,6 +43,7 @@ service_name="komari-agent"
 target_dir="/opt/komari"
 github_proxy=""
 install_version="" # New parameter for specifying version
+panel_endpoint="" # When set, download the custom agent build from the Komari panel
 install_dir_specified=false
 install_no_mirror=false # 关闭自动加速镜像
 service_user="${SUDO_USER:-$(id -un)}"
@@ -81,6 +82,11 @@ komari_args=""
 # [[ ]] -> [ ] (POSIX)
 while [ $# -gt 0 ]; do
     case $1 in
+        -e|--endpoint)
+            panel_endpoint="$2"
+            komari_args="$komari_args $1 $2"
+            shift 2
+            ;;
         --install-dir)
             target_dir="$2"
             install_dir_specified=true
@@ -356,37 +362,41 @@ resolve_snapshot_version() {
     return 1
 }
 
-version_to_install="latest"
-if [ -n "$install_version" ]; then
-    if [ "$install_version" = "snapshot" ]; then
-        log_info "Resolving the latest snapshot version..."
-        if ! resolve_snapshot_version; then
-            log_error "Failed to resolve the latest snapshot version."
-            exit 1
+if [ -n "$panel_endpoint" ]; then
+    panel_endpoint="${panel_endpoint%/}"
+    download_url="${panel_endpoint}/api/public/agent/download/${os_name}/${arch}"
+    version_to_install="panel-managed"
+    log_info "Using panel-managed Agent build from: ${GREEN}$panel_endpoint${NC}"
+else
+    version_to_install="latest"
+    if [ -n "$install_version" ]; then
+        if [ "$install_version" = "snapshot" ]; then
+            log_info "Resolving the latest snapshot version..."
+            if ! resolve_snapshot_version; then
+                log_error "Failed to resolve the latest snapshot version."
+                exit 1
+            fi
+            version_to_install="$RESOLVED_SNAPSHOT_VERSION"
+            log_success "Latest snapshot version: ${GREEN}$version_to_install${NC}"
+        else
+            log_info "Attempting to install specified version: ${GREEN}$install_version${NC}"
+            version_to_install="$install_version"
         fi
-        version_to_install="$RESOLVED_SNAPSHOT_VERSION"
-        log_success "Latest snapshot version: ${GREEN}$version_to_install${NC}"
     else
-        log_info "Attempting to install specified version: ${GREEN}$install_version${NC}"
-        version_to_install="$install_version"
+        log_info "No version specified, installing the latest version."
     fi
-else
-    log_info "No version specified, installing the latest version."
-fi
 
-# Construct download URL
-if [ "$version_to_install" = "latest" ]; then
-    download_path="latest/download"
-else
-    download_path="download/${version_to_install}"
-fi
+    if [ "$version_to_install" = "latest" ]; then
+        download_path="latest/download"
+    else
+        download_path="download/${version_to_install}"
+    fi
 
-if [ -n "$github_proxy" ]; then
-    # Use proxy for GitHub releases
-    download_url="${github_proxy}/https://github.com/komari-monitor/komari-agent/releases/${download_path}/${file_name}"
-else
-    # Direct access to GitHub releases
-    download_url="https://github.com/komari-monitor/komari-agent/releases/${download_path}/${file_name}"
+    if [ -n "$github_proxy" ]; then
+        download_url="${github_proxy}/https://github.com/komari-monitor/komari-agent/releases/${download_path}/${file_name}"
+    else
+        download_url="https://github.com/komari-monitor/komari-agent/releases/${download_path}/${file_name}"
+    fi
 fi
 
 log_step "Creating installation directory: ${GREEN}$target_dir${NC}"
@@ -397,7 +407,7 @@ fi
 
 # Download with automatic mirror fallback.
 # 直连失败自动依次尝试常见 GitHub 加速镜像, 可用 --install-no-mirror 关闭.
-if [ -n "$github_proxy" ] || [ "$install_no_mirror" = "true" ]; then
+if [ -n "$panel_endpoint" ] || [ -n "$github_proxy" ] || [ "$install_no_mirror" = "true" ]; then
     download_urls="$download_url"
 else
     download_urls="

@@ -21,6 +21,9 @@ func DeleteClient(clientUuid string) error {
 	if err != nil {
 		return err
 	}
+	if err := db.Delete(&models.AgentConfig{}, "uuid = ?", clientUuid).Error; err != nil {
+		return err
+	}
 	return nil
 }
 

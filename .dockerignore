@@ -8,7 +8,7 @@
 .idea
 .vscode
 
-agent
+agent/build
 build
 data
 **/node_modules

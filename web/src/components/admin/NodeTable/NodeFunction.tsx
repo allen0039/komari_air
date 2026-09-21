@@ -18,6 +18,7 @@ import {
   TextField,
 } from "@radix-ui/themes";
 import { toast } from "sonner";
+import { copyText } from "@/utils/clipboard";
 
 async function removeClient(uuid: string) {
   await fetch(`/api/admin/client/${uuid}/remove`, {
@@ -87,13 +88,13 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
     switch (selectedPlatform) {
       case "linux":
         finalCommand =
-          `wget -qO- https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/install.sh | sudo bash -s -- ` +
+          `bash <(curl -sL ${quoteShellArgs([host + "/api/public/agent/install.sh"])}) ` +
           quoteShellArgs(args);
         break;
       case "windows":
         finalCommand =
           `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ` +
-          `"iwr 'https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/install.ps1'` +
+          `"iwr '${host}/api/public/agent/install.ps1'` +
           ` -UseBasicParsing -OutFile 'install.ps1'; &` +
           ` '.\\install.ps1'`;
         args.forEach((arg) => {
@@ -103,7 +104,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
         break;
       case "macos":
         finalCommand =
-          `zsh <(curl -sL https://raw.githubusercontent.com/komari-monitor/komari-agent/refs/heads/main/install.sh) ` +
+          `zsh <(curl -sL ${quoteShellArgs([host + "/api/public/agent/install.sh"])}) ` +
           quoteShellArgs(args);
         break;
     }
@@ -111,11 +112,11 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
   };
 
   const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
+    const ok = await copyText(text);
+    if (ok) {
       toast.success(t("copy_success", "已复制到剪贴板"));
-    } catch (err) {
-      console.error("Failed to copy text: ", err);
+    } else {
+      toast.error(t("copy_failed", "复制失败，请手动复制"));
     }
   };
 
@@ -273,7 +274,7 @@ export function ActionsCell({ row }: { row: Row<z.infer<typeof schema>> }) {
               </label>
               <div className="relative">
                 <TextArea
-                  disabled
+                  readOnly
                   className="w-full"
                   style={{ minHeight: "80px" }}
                   value={generateCommand()}

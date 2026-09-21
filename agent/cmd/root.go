@@ -18,6 +18,7 @@ import (
 	"github.com/komari-monitor/komari-agent/dnsresolver"
 	"github.com/komari-monitor/komari-agent/monitoring/netstatic"
 	monitoring "github.com/komari-monitor/komari-agent/monitoring/unit"
+	"github.com/komari-monitor/komari-agent/runtimeconfig"
 	"github.com/komari-monitor/komari-agent/server"
 	"github.com/komari-monitor/komari-agent/update"
 	"github.com/spf13/cobra"
@@ -49,6 +50,9 @@ var RootCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("failed to parse config file: %w", err)
 			}
+		}
+		if err := runtimeconfig.Initialize(); err != nil {
+			return fmt.Errorf("failed to initialize managed config: %w", err)
 		}
 		if flags.PreferIPVersion != "" && flags.PreferIPVersion != "4" && flags.PreferIPVersion != "6" {
 			return fmt.Errorf("invalid --prefer-ip-version value %q: expected 4 or 6", flags.PreferIPVersion)
@@ -117,16 +121,12 @@ var RootCmd = &cobra.Command{
 		if flags.IgnoreUnsafeCert {
 			http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 		}
-		// 自动更新
-		if !flags.DisableAutoUpdate {
-			err := update.CheckAndUpdate()
-			if handleUpdateCheckResult(err, shutdown) {
-				return nil
-			}
-			go update.DoUpdateWorks(func() {
-				shutdown.shutdown(42)
-			})
-		}
+		// 自托管分支从当前面板获取匹配的 Agent 构建，避免自动更新回上游二进制。
+		update.SetPanelBaseURL(flags.Endpoint)
+		// 自动更新支持运行时启停；远程配置关闭时会取消后续检查。
+		update.SetAutoUpdateEnabled(!flags.DisableAutoUpdate, func() {
+			shutdown.shutdown(42)
+		})
 		go server.DoUploadBasicInfoWorks()
 		for {
 			server.UpdateBasicInfo()

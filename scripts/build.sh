@@ -6,6 +6,12 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${ROOT_DIR}/build"
 THEME_DIR="${ROOT_DIR}/server/web/public/defaultTheme"
 THEME_ARCHIVE="${THEME_DIR}/dist.tar.zst"
+VERSION="$(tr -d '[:space:]' < "${ROOT_DIR}/VERSION")"
+
+if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Invalid VERSION: ${VERSION}" >&2
+  exit 1
+fi
 
 for command_name in npm go tar zstd; do
   if ! command -v "${command_name}" >/dev/null 2>&1; then
@@ -34,13 +40,13 @@ mkdir -p "${BUILD_DIR}"
 echo "Building server..."
 (
   cd "${ROOT_DIR}/server"
-  go build -o "${BUILD_DIR}/komari" .
+  go build -trimpath -ldflags="-X github.com/komari-monitor/komari/utils.CurrentVersion=${VERSION}" -o "${BUILD_DIR}/komari" .
 )
 
 echo "Building agent..."
 (
   cd "${ROOT_DIR}/agent"
-  go build -o "${BUILD_DIR}/komari-agent" .
+  go build -trimpath -ldflags="-X github.com/komari-monitor/komari-agent/update.CurrentVersion=${VERSION}" -o "${BUILD_DIR}/komari-agent" .
 )
 
 echo "Build completed: ${BUILD_DIR}"

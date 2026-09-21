@@ -18,6 +18,8 @@ import (
 	"github.com/komari-monitor/komari-agent/dnsresolver"
 	"github.com/komari-monitor/komari-agent/monitoring"
 	v2 "github.com/komari-monitor/komari-agent/protocol/v2"
+	"github.com/komari-monitor/komari-agent/runtimeconfig"
+	"github.com/komari-monitor/komari-agent/update"
 	"github.com/komari-monitor/komari-agent/utils"
 	"github.com/komari-monitor/komari-agent/ws"
 )
@@ -33,7 +35,7 @@ const (
 	v2SeenEventLimit = 4096
 )
 
-var v2Capabilities = []string{"exec", "ping", "message", "event"}
+var v2Capabilities = []string{"exec", "ping", "message", "event", "config:v1"}
 
 func EstablishWebSocketConnection() {
 	var conn *ws.SafeConn
@@ -43,14 +45,12 @@ func EstablishWebSocketConnection() {
 		}
 	}()
 	var err error
-	interval := math.Max(1, flags.Interval)
 
 	// Connection recovery must not wait for the (possibly much longer) report
 	// interval. Poll the connection frequently and gate reports separately.
 	dataTicker := time.NewTicker(time.Second)
 	defer dataTicker.Stop()
-	reportInterval := time.Duration(interval * float64(time.Second))
-	nextReportAt := time.Now()
+	var lastReportAt time.Time
 
 	heartbeatTicker := time.NewTicker(30 * time.Second)
 	defer heartbeatTicker.Stop()
@@ -71,6 +71,7 @@ func EstablishWebSocketConnection() {
 					conn, err = connectWebSocket(websocketEndpoint)
 					if err == nil {
 						log.Println("WebSocket connected using v2 protocol")
+						sendCurrentManagedConfigReport(conn)
 						done := make(chan struct{})
 						readDone = done
 						go handleWebSocketMessages(conn, done)
@@ -84,23 +85,27 @@ func EstablishWebSocketConnection() {
 
 				if retry > flags.MaxRetries {
 					log.Println("Max retries reached.")
-					conn, err = runPostFallback(buildWebSocketEndpoint(), interval)
+					conn, err = runPostFallback(buildWebSocketEndpoint())
 					if err != nil {
 						log.Println("POST fallback stopped:", err)
 						return
 					}
 					log.Println("WebSocket recovered from POST fallback")
+					sendCurrentManagedConfigReport(conn)
 					done := make(chan struct{})
 					readDone = done
 					go handleWebSocketMessages(conn, done)
 				}
 			}
-			if conn == nil || time.Now().Before(nextReportAt) {
+			if conn == nil {
 				continue
 			}
-			nextReportAt = time.Now().Add(reportInterval)
+			currentInterval := time.Duration(math.Max(1, flags.Interval) * float64(time.Second))
+			if !lastReportAt.IsZero() && time.Since(lastReportAt) < currentInterval {
+				continue
+			}
 
-			data := v2.BuildReportPayload(monitoring.GenerateReport())
+			data := v2.BuildReportPayload(monitoring.GenerateReport(), v2Capabilities)
 			err = conn.WriteMessage(websocket.TextMessage, data)
 			if err != nil {
 				log.Println("Failed to send WebSocket message:", err)
@@ -109,6 +114,7 @@ func EstablishWebSocketConnection() {
 				readDone = nil
 				continue
 			}
+			lastReportAt = time.Now()
 		case <-heartbeatTicker.C:
 			if conn != nil {
 				err := conn.WriteMessage(websocket.PingMessage, nil)
@@ -141,28 +147,34 @@ func buildWebSocketEndpoint() string {
 	return websocketEndpoint
 }
 
-func runPostFallback(websocketEndpoint string, interval float64) (*ws.SafeConn, error) {
+func runPostFallback(websocketEndpoint string) (*ws.SafeConn, error) {
 	log.Println("Entering v2 POST fallback mode")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go runV2PullLoop(ctx)
 
-	reportTicker := time.NewTicker(time.Duration(interval * float64(time.Second)))
+	reportTicker := time.NewTicker(time.Second)
 	defer reportTicker.Stop()
+	var lastReportAt time.Time
 	reconnectTicker := time.NewTicker(time.Duration(flags.ReconnectInterval) * time.Second)
 	defer reconnectTicker.Stop()
 
 	for {
 		select {
 		case <-reportTicker.C:
+			currentInterval := time.Duration(math.Max(1, flags.Interval) * float64(time.Second))
+			if !lastReportAt.IsZero() && time.Since(lastReportAt) < currentInterval {
+				continue
+			}
 			reportID := fmt.Sprintf("report-%d", time.Now().UnixNano())
 			ackIDs := snapshotV2AckEventIDs()
-			resp, err := postV2Request(v2.BuildReportRequest(reportID, monitoring.GenerateReport(), ackIDs))
+			resp, err := postV2Request(v2.BuildReportRequest(reportID, monitoring.GenerateReport(), ackIDs, v2Capabilities))
 			if err != nil {
 				log.Println("Failed to POST v2 report:", err)
 				continue
 			}
 			clearV2AckEventIDs(ackIDs)
+			lastReportAt = time.Now()
 			processV2ResponseEvents(resp)
 		case <-reconnectTicker.C:
 			conn, err := connectWebSocket(websocketEndpoint)
@@ -247,6 +259,24 @@ func postV2RequestContext(ctx context.Context, payload []byte) (*v2.Response, er
 		return nil, err
 	}
 	return rpcResp, nil
+}
+
+func sendManagedConfigReport(conn *ws.SafeConn, report v2.ConfigReportParams) {
+	payload := v2.NewNotification(v2.MethodAgentConfigReport, report)
+	if conn != nil {
+		if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
+			log.Printf("failed to report managed config over websocket: %v", err)
+		}
+		return
+	}
+	if _, err := postV2Request(v2.NewRequest(fmt.Sprintf("config-%d", time.Now().UnixNano()), v2.MethodAgentConfigReport, report)); err != nil {
+		log.Printf("failed to report managed config: %v", err)
+	}
+}
+
+func sendCurrentManagedConfigReport(conn *ws.SafeConn) {
+	rev, config := runtimeconfig.Current()
+	sendManagedConfigReport(conn, v2.ConfigReportParams{Revision: rev, Status: "applied", Config: config})
 }
 
 func processV2ResponseEvents(resp *v2.Response) {
@@ -371,6 +401,25 @@ func processV2Event(conn *ws.SafeConn, method string, params interface{}, eventI
 		return true
 	}
 	switch method {
+	case v2.MethodAgentConfigSet:
+		var p v2.ConfigSetParams
+		if err := v2.BindParams(params, &p); err != nil {
+			log.Printf("bad v2 config params: %v", err)
+			return false
+		}
+		_, before := runtimeconfig.Current()
+		_, applied, changed, err := runtimeconfig.Apply(p.Revision, p.Config)
+		if err != nil {
+			currentRevision, currentConfig := runtimeconfig.Current()
+			sendManagedConfigReport(conn, v2.ConfigReportParams{Revision: currentRevision, Status: "error", Config: currentConfig, Error: err.Error()})
+			return true
+		}
+		if changed && before.DisableAutoUpdate != applied.DisableAutoUpdate {
+			update.SetAutoUpdateEnabled(!applied.DisableAutoUpdate, nil)
+		}
+		currentRevision, currentConfig := runtimeconfig.Current()
+		sendManagedConfigReport(conn, v2.ConfigReportParams{Revision: currentRevision, Status: "applied", Config: currentConfig})
+		return true
 	case v2.MethodAgentExec:
 		var p struct {
 			TaskID  string `json:"task_id"`

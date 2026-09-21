@@ -3,16 +3,18 @@ package v2
 import "time"
 
 const (
-	Version               = "2.0"
-	MethodAgentReport     = "agent.report"
-	MethodAgentBasicInfo  = "agent.basicInfo"
-	MethodAgentPingResult = "agent.pingResult"
-	MethodAgentTaskResult = "agent.taskResult"
-	MethodAgentExec       = "agent.exec"
-	MethodAgentPing       = "agent.ping"
-	MethodAgentMessage    = "agent.message"
-	MethodAgentEvent      = "agent.event"
-	MethodAgentPull       = "agent.pull"
+	Version                 = "2.0"
+	MethodAgentReport       = "agent.report"
+	MethodAgentBasicInfo    = "agent.basicInfo"
+	MethodAgentPingResult   = "agent.pingResult"
+	MethodAgentTaskResult   = "agent.taskResult"
+	MethodAgentExec         = "agent.exec"
+	MethodAgentPing         = "agent.ping"
+	MethodAgentMessage      = "agent.message"
+	MethodAgentEvent        = "agent.event"
+	MethodAgentPull         = "agent.pull"
+	MethodAgentConfigSet    = "agent.config.set"
+	MethodAgentConfigReport = "agent.config.report"
 )
 
 type Request struct {
@@ -44,8 +46,9 @@ type RPCError struct {
 }
 
 type ReportParams struct {
-	Report      Report   `json:"report"`
-	AckEventIDs []string `json:"ack_event_ids,omitempty"`
+	Report       Report   `json:"report"`
+	AckEventIDs  []string `json:"ack_event_ids,omitempty"`
+	Capabilities []string `json:"capabilities,omitempty"`
 }
 
 type Message struct {
@@ -148,6 +151,29 @@ type PullParams struct {
 	Capabilities []string `json:"capabilities,omitempty"`
 	AckEventIDs  []string `json:"ack_event_ids,omitempty"`
 	LastEventID  string   `json:"last_event_id,omitempty"`
+}
+
+type AgentManagedConfig struct {
+	DisableAutoUpdate  bool    `json:"disable_auto_update"`
+	Interval           float64 `json:"interval"`
+	MonthRotate        int     `json:"month_rotate"`
+	IncludeNics        string  `json:"include_nics"`
+	ExcludeNics        string  `json:"exclude_nics"`
+	IncludeMountpoints string  `json:"include_mountpoints"`
+	MemoryIncludeCache bool    `json:"memory_include_cache"`
+	GetIPAddrFromNic   bool    `json:"get_ip_addr_from_nic"`
+}
+
+type ConfigSetParams struct {
+	Revision uint64             `json:"revision"`
+	Config   AgentManagedConfig `json:"config"`
+}
+
+type ConfigReportParams struct {
+	Revision uint64             `json:"revision"`
+	Status   string             `json:"status"`
+	Config   AgentManagedConfig `json:"config"`
+	Error    string             `json:"error,omitempty"`
 }
 
 type ExecParams struct {

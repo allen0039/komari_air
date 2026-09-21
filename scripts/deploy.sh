@@ -236,7 +236,11 @@ load_deploy_config() {
 
   KOMARI_PORT="${KOMARI_PORT:-${saved_port:-25774}}"
   KOMARI_TZ="${KOMARI_TZ:-${saved_timezone:-Asia/Shanghai}}"
+  KOMARI_VERSION="$(tr -d '[:space:]' < "${INSTALL_DIR}/VERSION")"
 
+  if [[ ! "${KOMARI_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    fail "VERSION must contain a semantic version such as 0.1.0"
+  fi
   if ! [[ "${KOMARI_PORT}" =~ ^[0-9]+$ ]] || (( KOMARI_PORT < 1 || KOMARI_PORT > 65535 )); then
     fail "KOMARI_PORT must be an integer between 1 and 65535"
   fi
@@ -245,8 +249,8 @@ load_deploy_config() {
   fi
 
   umask 077
-  printf 'COMPOSE_PROJECT_NAME=komari_air\nKOMARI_PORT=%s\nKOMARI_TZ=%s\n' \
-    "${KOMARI_PORT}" "${KOMARI_TZ}" >"${env_file}"
+  printf 'COMPOSE_PROJECT_NAME=komari_air\nKOMARI_VERSION=%s\nKOMARI_PORT=%s\nKOMARI_TZ=%s\n' \
+    "${KOMARI_VERSION}" "${KOMARI_PORT}" "${KOMARI_TZ}" >"${env_file}"
 }
 
 require_checkout() {
