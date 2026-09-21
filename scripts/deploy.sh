@@ -16,8 +16,155 @@ fail() {
   exit 1
 }
 
-require_command() {
-  command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+install_packages() {
+  if command_exists apt-get; then
+    log "Installing packages with apt-get: $*"
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y --no-install-recommends "$@"
+  elif command_exists dnf; then
+    log "Installing packages with dnf: $*"
+    dnf install -y "$@"
+  elif command_exists yum; then
+    log "Installing packages with yum: $*"
+    yum install -y "$@"
+  elif command_exists apk; then
+    log "Installing packages with apk: $*"
+    apk add --no-cache "$@"
+  elif command_exists pacman; then
+    log "Installing packages with pacman: $*"
+    pacman -Sy --noconfirm --needed "$@"
+  elif command_exists zypper; then
+    log "Installing packages with zypper: $*"
+    zypper --non-interactive install "$@"
+  else
+    fail "No supported package manager was found; install $* manually"
+  fi
+}
+
+ensure_base_dependencies() {
+  local packages=()
+
+  if ! command_exists curl; then
+    packages+=(curl ca-certificates)
+  fi
+  if ! command_exists git; then
+    packages+=(git)
+  fi
+
+  if (( ${#packages[@]} > 0 )); then
+    install_packages "${packages[@]}"
+  fi
+
+  command_exists curl || fail "Failed to install required command: curl"
+  command_exists git || fail "Failed to install required command: git"
+}
+
+install_docker() {
+  log "Docker is not installed; installing it now..."
+
+  if command_exists apk; then
+    install_packages docker docker-cli-compose
+  elif command_exists pacman; then
+    install_packages docker docker-compose
+  elif command_exists zypper; then
+    install_packages docker docker-compose
+  else
+    local installer
+    installer="$(mktemp)"
+    if ! curl -fsSL --retry 3 https://get.docker.com -o "${installer}"; then
+      rm -f "${installer}"
+      fail "Failed to download the official Docker installer"
+    fi
+    if ! sh "${installer}"; then
+      rm -f "${installer}"
+      fail "The official Docker installer failed"
+    fi
+    rm -f "${installer}"
+  fi
+
+  command_exists docker || fail "Docker installation did not provide the docker command"
+}
+
+start_docker() {
+  if docker info >/dev/null 2>&1; then
+    return
+  fi
+
+  log "Starting Docker..."
+  if command_exists systemctl; then
+    systemctl enable --now docker >/dev/null 2>&1 || systemctl start docker >/dev/null 2>&1 || true
+  elif command_exists rc-service; then
+    rc-update add docker default >/dev/null 2>&1 || true
+    rc-service docker start >/dev/null 2>&1 || true
+  elif command_exists service; then
+    service docker start >/dev/null 2>&1 || true
+  fi
+
+  local attempt
+  for ((attempt = 1; attempt <= 30; attempt++)); do
+    if docker info >/dev/null 2>&1; then
+      return
+    fi
+    sleep 1
+  done
+
+  fail "Docker is installed but the daemon could not be started"
+}
+
+install_compose_plugin() {
+  local asset
+  local architecture
+  local actual_checksum
+  local expected_checksum
+  local plugin_dir="/usr/local/lib/docker/cli-plugins"
+  local plugin_path="${plugin_dir}/docker-compose"
+
+  case "$(uname -m)" in
+    x86_64|amd64)
+      architecture="x86_64"
+      ;;
+    aarch64|arm64)
+      architecture="aarch64"
+      ;;
+    armv7l|armv7)
+      architecture="armv7"
+      ;;
+    ppc64le|s390x|riscv64)
+      architecture="$(uname -m)"
+      ;;
+    *)
+      fail "Unsupported architecture for Docker Compose: $(uname -m)"
+      ;;
+  esac
+
+  log "Docker Compose is not installed; installing the official plugin..."
+  asset="docker-compose-linux-${architecture}"
+  mkdir -p "${plugin_dir}"
+  curl -fsSL --retry 3 \
+    "https://github.com/docker/compose/releases/latest/download/${asset}" \
+    -o "${plugin_path}.tmp"
+  expected_checksum="$(
+    curl -fsSL --retry 3 https://github.com/docker/compose/releases/latest/download/checksums.txt \
+      | awk -v asset="${asset}" '$2 == asset || $2 == "*" asset { print $1; exit }'
+  )"
+  if [[ -z "${expected_checksum}" ]]; then
+    rm -f "${plugin_path}.tmp"
+    fail "Could not find the Docker Compose checksum"
+  fi
+  actual_checksum="$(sha256sum "${plugin_path}.tmp" | awk '{ print $1 }')"
+  if [[ "${actual_checksum}" != "${expected_checksum}" ]]; then
+    rm -f "${plugin_path}.tmp"
+    fail "Docker Compose checksum verification failed"
+  fi
+  chmod 0755 "${plugin_path}.tmp"
+  mv "${plugin_path}.tmp" "${plugin_path}"
+
+  docker compose version >/dev/null 2>&1 || fail "Docker Compose plugin installation failed"
 }
 
 read_env_value() {
@@ -30,19 +177,20 @@ if [[ "${EUID}" -ne 0 ]]; then
   fail "Run this script as root, for example: curl ... | sudo bash"
 fi
 
-require_command git
-require_command docker
+ensure_base_dependencies
 
-if ! docker info >/dev/null 2>&1; then
-  fail "Docker is installed but the daemon is not available"
+if ! command_exists docker; then
+  install_docker
 fi
+start_docker
 
 if docker compose version >/dev/null 2>&1; then
   COMPOSE=(docker compose)
-elif command -v docker-compose >/dev/null 2>&1; then
-  COMPOSE=(docker-compose)
+elif command_exists docker-compose; then
+  COMPOSE=(docker-compose -f compose.yaml)
 else
-  fail "Docker Compose is required"
+  install_compose_plugin
+  COMPOSE=(docker compose)
 fi
 
 sync_repository() {

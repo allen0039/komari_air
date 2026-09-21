@@ -59,13 +59,19 @@ npm run dev
 
 ## 一键部署
 
-适用于已安装 Git、Docker 和 Docker Compose 的 Linux 服务器：
+适用于常见 Linux 服务器。脚本会自动安装缺失的 Git、Docker 和 Docker Compose，然后拉取源码、构建并启动服务：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/allen0039/komari_air/main/scripts/deploy.sh | sudo bash
 ```
 
-脚本会自动将仓库克隆到 `/opt/komari_air`，或在已部署时快进拉取 `main` 分支，然后构建镜像、启动容器并等待健康检查通过。重复执行同一条命令即可更新。数据库保存在 Docker 命名卷 `komari_air_data` 中，更新和普通停止不会删除数据。
+已经是 `root` 用户时可以直接执行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/allen0039/komari_air/main/scripts/deploy.sh | bash
+```
+
+脚本支持 Debian、Ubuntu、RHEL/CentOS/Fedora、Alpine、Arch 和 openSUSE 等常见发行版。它会自动将仓库克隆到 `/opt/komari_air`，或在已部署时快进拉取 `main` 分支，然后构建镜像、启动容器并等待健康检查通过。重复执行同一条命令即可更新。数据库保存在 Docker 命名卷 `komari_air_data` 中，更新和普通停止不会删除数据。
 
 指定端口或时区：
 
