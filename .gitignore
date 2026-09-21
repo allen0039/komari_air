@@ -1,0 +1,49 @@
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Environment and local configuration
+.env
+.env.*
+!.env.example
+agent.json
+config.json
+auto-discovery.json
+fake-agent-client.json
+net_static.json
+
+# Frontend dependencies and output
+node_modules/
+dist/
+dist-ssr/
+.vite/
+coverage/
+bundle-analysis.html
+theme-package/
+*.log
+
+# Go build and test output
+build/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+__debug*
+server/komari
+agent/komari-agent
+
+# Runtime data
+*.db
+*.sqlite
+*.sqlite3
+server/data/
+server/backup/
+server/utils/geoip/data/
+
+# Generated frontend archive embedded by the server
+server/web/public/defaultTheme/dist.tar.zst
+

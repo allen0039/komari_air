@@ -1,0 +1,69 @@
+package security
+
+import (
+	"net/http"
+	"net/url"
+	"strings"
+)
+
+func SplitAllowlist(raw string) []string {
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\r'
+	})
+	entries := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if entry := strings.TrimSpace(part); entry != "" {
+			entries = append(entries, entry)
+		}
+	}
+	return entries
+}
+
+func OriginMatchesHost(origin, host string) bool {
+	_, originHost, ok := normalizeOrigin(origin)
+	return ok && strings.EqualFold(originHost, host)
+}
+
+func OriginInAllowlist(origin, rawAllowlist string) bool {
+	normalizedOrigin, originHost, ok := normalizeOrigin(origin)
+	if !ok {
+		return false
+	}
+	for _, entry := range SplitAllowlist(rawAllowlist) {
+		if entry == "*" {
+			return true
+		}
+		if strings.Contains(entry, "://") {
+			normalizedEntry, _, valid := normalizeOrigin(entry)
+			if valid && strings.EqualFold(normalizedEntry, normalizedOrigin) {
+				return true
+			}
+			continue
+		}
+		if strings.EqualFold(entry, originHost) {
+			return true
+		}
+	}
+	return false
+}
+
+func IsAuthorizationPreflight(r *http.Request) bool {
+	if r.Method != http.MethodOptions {
+		return false
+	}
+	for _, header := range strings.Split(r.Header.Get("Access-Control-Request-Headers"), ",") {
+		if strings.EqualFold(strings.TrimSpace(header), "authorization") {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeOrigin(raw string) (string, string, bool) {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", "", false
+	}
+	host := strings.ToLower(parsed.Host)
+	return strings.ToLower(parsed.Scheme) + "://" + host, host, true
+}
