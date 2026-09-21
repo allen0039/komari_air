@@ -57,6 +57,35 @@ npm ci
 npm run dev
 ```
 
+## 一键部署
+
+适用于已安装 Git、Docker 和 Docker Compose 的 Linux 服务器：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/allen0039/komari_air/main/scripts/deploy.sh | sudo bash
+```
+
+脚本会自动将仓库克隆到 `/opt/komari_air`，或在已部署时快进拉取 `main` 分支，然后构建镜像、启动容器并等待健康检查通过。重复执行同一条命令即可更新。数据库保存在 Docker 命名卷 `komari_air_data` 中，更新和普通停止不会删除数据。
+
+指定端口或时区：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/allen0039/komari_air/main/scripts/deploy.sh \
+  | sudo env KOMARI_PORT=8080 KOMARI_TZ=Asia/Shanghai bash
+```
+
+常用管理命令：
+
+```bash
+cd /opt/komari_air
+sudo ./scripts/deploy.sh status
+sudo ./scripts/deploy.sh logs
+sudo ./scripts/deploy.sh restart
+sudo ./scripts/deploy.sh stop
+```
+
+首次启动后访问 `http://服务器IP:25774` 完成初始化。生产环境应在前面配置 HTTPS 反向代理，并限制管理入口访问范围。
+
 ## 安全说明
 
 这是一个具有节点数据采集和远程命令能力的自托管工具。请只在你拥有或获准管理的系统中部署，使用 HTTPS，设置强密码，并限制管理后台的网络访问范围。

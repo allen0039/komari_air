@@ -1,0 +1,22 @@
+services:
+  komari:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${KOMARI_IMAGE:-komari-air:local}
+    restart: unless-stopped
+    environment:
+      GIN_MODE: release
+      KOMARI_LISTEN: 0.0.0.0:25774
+      TZ: ${KOMARI_TZ:-Asia/Shanghai}
+    ports:
+      - "${KOMARI_PORT:-25774}:25774"
+    volumes:
+      - komari-data:/app/data
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+
+volumes:
+  komari-data:
+    name: ${KOMARI_DATA_VOLUME:-komari_air_data}
