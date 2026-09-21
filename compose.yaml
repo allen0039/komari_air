@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
       args:
         KOMARI_VERSION: ${KOMARI_VERSION:-0.1.0}
+        KOMARI_COMMIT: ${KOMARI_COMMIT:-unknown}
     image: ${KOMARI_IMAGE:-komari-air:local}
     restart: unless-stopped
     environment:

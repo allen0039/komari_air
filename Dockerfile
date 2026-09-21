@@ -29,6 +29,7 @@ RUN set -eux; \
 FROM golang:1.25-bookworm AS server-builder
 
 ARG KOMARI_VERSION
+ARG KOMARI_COMMIT=unknown
 RUN test -n "$KOMARI_VERSION"
 RUN apt-get update \
     && apt-get install -y --no-install-recommends zstd \
@@ -45,7 +46,7 @@ COPY --from=web-builder /src/web/komari-theme.json web/public/defaultTheme/komar
 RUN mkdir -p web/public/defaultTheme \
     && tar -cf /tmp/komari-web.tar -C /src/web-dist . \
     && zstd -19 -T0 -f /tmp/komari-web.tar -o web/public/defaultTheme/dist.tar.zst \
-    && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/komari-monitor/komari/utils.CurrentVersion=${KOMARI_VERSION}" -o /out/komari .
+    && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/komari-monitor/komari/utils.CurrentVersion=${KOMARI_VERSION} -X github.com/komari-monitor/komari/utils.VersionHash=${KOMARI_COMMIT}" -o /out/komari .
 
 FROM debian:bookworm-slim
 

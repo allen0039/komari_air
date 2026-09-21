@@ -249,8 +249,9 @@ load_deploy_config() {
   fi
 
   umask 077
-  printf 'COMPOSE_PROJECT_NAME=komari_air\nKOMARI_VERSION=%s\nKOMARI_PORT=%s\nKOMARI_TZ=%s\n' \
-    "${KOMARI_VERSION}" "${KOMARI_PORT}" "${KOMARI_TZ}" >"${env_file}"
+  KOMARI_COMMIT="$(git -C "${SOURCE_DIR}" rev-parse --short=7 HEAD 2>/dev/null || printf unknown)"
+  printf 'COMPOSE_PROJECT_NAME=komari_air\nKOMARI_VERSION=%s\nKOMARI_COMMIT=%s\nKOMARI_PORT=%s\nKOMARI_TZ=%s\n' \
+    "${KOMARI_VERSION}" "${KOMARI_COMMIT}" "${KOMARI_PORT}" "${KOMARI_TZ}" >"${env_file}"
 }
 
 require_checkout() {
