@@ -13,6 +13,7 @@ const (
 	MethodAgentPull         = "agent.pull"
 	MethodAgentConfigSet    = "agent.config.set"
 	MethodAgentConfigReport = "agent.config.report"
+	MethodAgentTraceResult  = "agent.traceResult"
 )
 
 type Request struct {

@@ -9,39 +9,81 @@ import (
 
 // Client represents a registered client device
 type Client struct {
-	UUID             string     `json:"uuid,omitempty" gorm:"type:varchar(36);primaryKey"`
-	Token            string     `json:"token,omitempty" gorm:"type:varchar(255);unique;not null"`
-	Name             string     `json:"name" gorm:"type:varchar(100)"`
-	CpuName          string     `json:"cpu_name" gorm:"type:varchar(100)"`
-	Virtualization   string     `json:"virtualization" gorm:"type:varchar(50)"`
-	Arch             string     `json:"arch" gorm:"type:varchar(50)"`
-	CpuCores         int        `json:"cpu_cores" gorm:"type:int"`
-	CpuPhysicalCores int        `json:"cpu_physical_cores" gorm:"type:int"`
-	OS               string     `json:"os" gorm:"type:varchar(100)"`
-	KernelVersion    string     `json:"kernel_version" gorm:"type:varchar(100)"`
-	GpuName          string     `json:"gpu_name" gorm:"type:varchar(100)"`
-	IPv4             string     `json:"ipv4,omitempty" gorm:"type:varchar(100)"`
-	IPv6             string     `json:"ipv6,omitempty" gorm:"type:varchar(100)"`
-	Region           string     `json:"region" gorm:"type:varchar(100)"`
-	Remark           string     `json:"remark,omitempty" gorm:"type:longtext"`
-	PublicRemark     string     `json:"public_remark,omitempty" gorm:"type:longtext"`
-	MemTotal         int64      `json:"mem_total" gorm:"type:bigint"`
-	SwapTotal        int64      `json:"swap_total" gorm:"type:bigint"`
-	DiskTotal        int64      `json:"disk_total" gorm:"type:bigint"`
-	Version          string     `json:"version,omitempty" gorm:"type:varchar(100)"`
-	Weight           int        `json:"weight" gorm:"type:int"`
-	Price            float64    `json:"price"`
-	BillingCycle     int        `json:"billing_cycle"`
-	AutoRenewal      bool       `json:"auto_renewal" gorm:"default:false"` // 是否自动续费
-	Currency         string     `json:"currency" gorm:"type:varchar(20);default:'$'"`
-	ExpiredAt        *time.Time `json:"expired_at" gorm:"type:timestamp"`
-	Group            string     `json:"group" gorm:"type:varchar(100)"`
-	Tags             string     `json:"tags" gorm:"type:text"` // split by ';'
-	Hidden           bool       `json:"hidden" gorm:"default:false"`
-	TrafficLimit     int64      `json:"traffic_limit" gorm:"type:bigint"`
-	TrafficLimitType string     `json:"traffic_limit_type" gorm:"type:varchar(10);default:'max'"` // 流量阈值类型：sum max min up down
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	UUID             string               `json:"uuid,omitempty" gorm:"type:varchar(36);primaryKey"`
+	Token            string               `json:"token,omitempty" gorm:"type:varchar(255);unique;not null"`
+	Name             string               `json:"name" gorm:"type:varchar(100)"`
+	CpuName          string               `json:"cpu_name" gorm:"type:varchar(100)"`
+	Virtualization   string               `json:"virtualization" gorm:"type:varchar(50)"`
+	Arch             string               `json:"arch" gorm:"type:varchar(50)"`
+	CpuCores         int                  `json:"cpu_cores" gorm:"type:int"`
+	CpuPhysicalCores int                  `json:"cpu_physical_cores" gorm:"type:int"`
+	OS               string               `json:"os" gorm:"type:varchar(100)"`
+	KernelVersion    string               `json:"kernel_version" gorm:"type:varchar(100)"`
+	GpuName          string               `json:"gpu_name" gorm:"type:varchar(100)"`
+	IPv4             string               `json:"ipv4,omitempty" gorm:"type:varchar(100)"`
+	IPv6             string               `json:"ipv6,omitempty" gorm:"type:varchar(100)"`
+	Region           string               `json:"region" gorm:"type:varchar(100)"`
+	Remark           string               `json:"remark,omitempty" gorm:"type:longtext"`
+	PublicRemark     string               `json:"public_remark,omitempty" gorm:"type:longtext"`
+	MemTotal         int64                `json:"mem_total" gorm:"type:bigint"`
+	SwapTotal        int64                `json:"swap_total" gorm:"type:bigint"`
+	DiskTotal        int64                `json:"disk_total" gorm:"type:bigint"`
+	Version          string               `json:"version,omitempty" gorm:"type:varchar(100)"`
+	Weight           int                  `json:"weight" gorm:"type:int"`
+	Price            float64              `json:"price"`
+	BillingCycle     int                  `json:"billing_cycle"`
+	AutoRenewal      bool                 `json:"auto_renewal" gorm:"default:false"` // 是否自动续费
+	Currency         string               `json:"currency" gorm:"type:varchar(20);default:'$'"`
+	ExpiredAt        *time.Time           `json:"expired_at" gorm:"type:timestamp"`
+	Group            string               `json:"group" gorm:"type:varchar(100)"`
+	Tags             string               `json:"tags" gorm:"type:text"` // split by ';'
+	Hidden           bool                 `json:"hidden" gorm:"default:false"`
+	TrafficLimit     int64                `json:"traffic_limit" gorm:"type:bigint"`
+	TrafficLimitType string               `json:"traffic_limit_type" gorm:"type:varchar(10);default:'max'"` // 流量阈值类型：sum max min up down
+	CreatedAt        time.Time            `json:"created_at"`
+	UpdatedAt        time.Time            `json:"updated_at"`
+	ReturnRoutes     []ReturnRouteSummary `json:"return_routes,omitempty" gorm:"-"`
+}
+
+type ReturnRouteSummary struct {
+	Carrier    string    `json:"carrier"`
+	RouteType  string    `json:"route_type"`
+	Confidence string    `json:"confidence"`
+	TestedAt   time.Time `json:"tested_at"`
+	Stale      bool      `json:"stale"`
+}
+
+type ReturnRouteResult struct {
+	ID          uint      `gorm:"primaryKey"`
+	ClientID    string    `gorm:"index:idx_return_route_client_carrier,unique"`
+	Carrier     string    `gorm:"index:idx_return_route_client_carrier,unique;size:20"`
+	RouteType   string    `gorm:"size:64"`
+	Confidence  string    `gorm:"size:16"`
+	TargetID    string    `gorm:"size:128"`
+	EntryIP     string    `gorm:"size:64"`
+	EntryASN    string    `gorm:"size:32"`
+	Reason      string    `gorm:"type:text"`
+	TestedAt    time.Time `gorm:"index"`
+	LastAttempt time.Time `gorm:"index"`
+	Stale       bool      `gorm:"index"`
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type ReturnRouteSample struct {
+	ID         uint      `gorm:"primaryKey"`
+	ClientID   string    `gorm:"index"`
+	Carrier    string    `gorm:"index;size:20"`
+	TargetID   string    `gorm:"index;size:128"`
+	TargetHost string    `gorm:"size:255"`
+	RouteType  string    `gorm:"size:64"`
+	Confidence string    `gorm:"size:16"`
+	EntryIP    string    `gorm:"size:64"`
+	Reason     string    `gorm:"type:text"`
+	HopsJSON   string    `gorm:"type:text"`
+	OK         bool      `gorm:"index"`
+	TestedAt   time.Time `gorm:"index"`
+	CreatedAt  time.Time
 }
 
 // AgentConfig stores desired and reported managed runtime configuration for one agent.

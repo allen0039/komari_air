@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/komari-monitor/komari/database/agentconfig"
 	"github.com/komari-monitor/komari/database/clients"
+	"github.com/komari-monitor/komari/database/returnroutes"
 	v2 "github.com/komari-monitor/komari/protocol/v2"
 	"github.com/komari-monitor/komari/utils/notifier"
 	agent_runtime "github.com/komari-monitor/komari/web/agent"
@@ -96,6 +97,25 @@ func handleV2RPC(uuid string, req v2.Request, allowWait bool) v2.Response {
 		}
 		if err := ingestPingResult(uuid, params.TaskID, params.Value); err != nil {
 			return v2.Error(req.ID, -32000, "failed to save ping result", err.Error())
+		}
+		return v2.Success(req.ID, gin.H{"status": "success"})
+	case v2.MethodAgentTraceResult:
+		var params v2.NextTraceResult
+		if err := bindV2Params(req.Params, &params); err != nil {
+			return v2.Error(req.ID, -32602, "invalid trace result params", err.Error())
+		}
+		if params.SourceID != "" && params.SourceID != uuid {
+			return v2.Error(req.ID, -32602, "trace result source mismatch", nil)
+		}
+		encoded, encodeErr := json.Marshal(params)
+		if encodeErr != nil || len(encoded) > 64*1024 {
+			return v2.Error(req.ID, -32602, "trace result exceeds size limit", nil)
+		}
+		if len(params.Hops) > 30 {
+			return v2.Error(req.ID, -32602, "trace result exceeds hop limit", nil)
+		}
+		if err := returnroutes.SaveResult(uuid, params); err != nil {
+			return v2.Error(req.ID, -32000, "failed to save trace result", err.Error())
 		}
 		return v2.Success(req.ID, gin.H{"status": "success"})
 	case v2.MethodAgentConfigReport:

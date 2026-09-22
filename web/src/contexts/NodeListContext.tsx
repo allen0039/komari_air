@@ -53,6 +53,13 @@ export type NodeBasicInfo = {
   updated_at: string;
   ipv4?: string; 
   ipv6?: string;
+  return_routes?: Array<{
+    carrier: "telecom" | "unicom" | "mobile" | string;
+    route_type: string;
+    confidence: string;
+    tested_at: string;
+    stale: boolean;
+  }>;
 };
 
 interface NodeListContextType {
