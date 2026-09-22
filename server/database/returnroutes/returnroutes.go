@@ -137,8 +137,11 @@ func aggregateClientCarrier(db *gorm.DB, clientID, carrier string, now time.Time
 			counts[sample.RouteType]++
 		}
 	}
-	bestType, bestCount := "Unknown", 0
+	bestType := latest.RouteType
+	bestCount := counts[bestType]
+	knownCount := 0
 	for routeType, count := range counts {
+		knownCount += count
 		if count > bestCount {
 			bestType, bestCount = routeType, count
 		}
@@ -150,9 +153,9 @@ func aggregateClientCarrier(db *gorm.DB, clientID, carrier string, now time.Time
 	} else if bestCount == 1 {
 		confidence, reason = "medium", "one recent target produced a stable signature"
 	}
-	if len(counts) > 1 && bestCount < len(samples) {
-		bestType = "Mixed"
-		confidence, reason = "low", "recent targets produced different route signatures"
+	if len(counts) > 1 && bestCount*2 <= knownCount {
+		bestType = latest.RouteType
+		confidence, reason = "medium", "recent targets differ; using the latest result"
 	}
 	return touchSummary(db, clientID, carrier, now, true, bestType, confidence, reason)
 }

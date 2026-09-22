@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"net"
@@ -21,9 +22,12 @@ func NewTraceTask(conn *ws.SafeConn, p v2.NextTraceParams) {
 		return
 	}
 	go func() {
+		log.Printf("trace task queued: task=%s target=%s host=%s", p.TaskID, p.TargetID, p.TargetHost)
 		traceSemaphore <- struct{}{}
 		defer func() { <-traceSemaphore }()
+		log.Printf("trace task started: task=%s target=%s", p.TaskID, p.TargetID)
 		result := runTrace(p)
+		log.Printf("trace task finished: task=%s target=%s ok=%t hops=%d error=%q", p.TaskID, p.TargetID, result.OK, len(result.Hops), result.Error)
 		payload := v2.BuildTraceResultPayload(result)
 		if conn != nil {
 			if err := conn.WriteJSON(payload); err != nil {
@@ -109,36 +113,59 @@ func nativeIPv4Trace(target net.IP, maxHops int, timeout time.Duration) ([]v2.Tr
 		if _, err := udp.WriteTo([]byte("komari-trace"), &net.UDPAddr{IP: target, Port: port}); err != nil {
 			return hops, err
 		}
-		_ = conn.SetReadDeadline(time.Now().Add(minDuration(900*time.Millisecond, timeout)))
-		buf := make([]byte, 1500)
-		n, peer, err := conn.ReadFrom(buf)
-		if err != nil {
+		deadline := time.Now().Add(minDuration(900*time.Millisecond, timeout))
+		_ = conn.SetReadDeadline(deadline)
+		matched := false
+		for time.Now().Before(deadline) {
+			buf := make([]byte, 1500)
+			n, peer, readErr := conn.ReadFrom(buf)
+			if readErr != nil {
+				break
+			}
+			msg, parseErr := icmp.ParseMessage(1, buf[:n])
+			if parseErr != nil || !matchesTraceReply(msg, target, port) {
+				continue
+			}
+			ipStr := ""
+			if addr, ok := peer.(*net.IPAddr); ok {
+				ipStr = addr.IP.String()
+			}
+			hop := v2.TraceHop{Hop: ttl, IP: ipStr, RTTMs: float64(time.Since(start).Microseconds()) / 1000}
+			if names, lookupErr := net.LookupAddr(ipStr); lookupErr == nil && len(names) > 0 {
+				hop.Host = strings.TrimSuffix(names[0], ".")
+			}
+			hops = append(hops, hop)
+			matched = true
+			if ipStr == target.String() {
+				return hops, nil
+			}
+			break
+		}
+		if !matched {
 			if ctx.Err() != nil {
 				break
 			}
 			hops = append(hops, v2.TraceHop{Hop: ttl, Loss: 100})
-			continue
-		}
-		msg, err := icmp.ParseMessage(1, buf[:n])
-		if err != nil {
-			continue
-		}
-		ipStr := ""
-		if addr, ok := peer.(*net.IPAddr); ok {
-			ipStr = addr.IP.String()
-		}
-		hop := v2.TraceHop{Hop: ttl, IP: ipStr, RTTMs: float64(time.Since(start).Microseconds()) / 1000}
-		// Reverse DNS is the same signal used by common route probes (including
-		// nexttrace) and preserves carrier names such as chinanet/cmcc.
-		if names, lookupErr := net.LookupAddr(ipStr); lookupErr == nil && len(names) > 0 {
-			hop.Host = strings.TrimSuffix(names[0], ".")
-		}
-		hops = append(hops, hop)
-		if msg.Type == ipv4.ICMPTypeEchoReply || ipStr == target.String() {
-			break
 		}
 	}
 	return hops, nil
+}
+
+func matchesTraceReply(msg *icmp.Message, target net.IP, port int) bool {
+	var data []byte
+	switch body := msg.Body.(type) {
+	case *icmp.TimeExceeded:
+		data = body.Data
+	case *icmp.DstUnreach:
+		data = body.Data
+	default:
+		return false
+	}
+	header, err := ipv4.ParseHeader(data)
+	if err != nil || header.Len < 20 || len(data) < header.Len+8 || !header.Dst.Equal(target) {
+		return false
+	}
+	return int(binary.BigEndian.Uint16(data[header.Len+2:header.Len+4])) == port
 }
 
 func minDuration(a, b time.Duration) time.Duration {
