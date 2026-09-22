@@ -10,7 +10,10 @@ const IPFamilyIPv4 IPFamily = "ipv4"
 
 type TraceProtocol string
 
-const TraceProtocolICMP TraceProtocol = "icmp"
+const (
+	TraceProtocolICMP TraceProtocol = "icmp"
+	TraceProtocolTCP  TraceProtocol = "tcp"
+)
 
 type NextTraceParams struct {
 	TaskID     string        `json:"task_id"`
@@ -40,10 +43,11 @@ type TraceResult struct {
 }
 
 type TraceHop struct {
-	Hop   int     `json:"hop"`
-	IP    string  `json:"ip"`
-	Host  string  `json:"host,omitempty"`
-	ASN   string  `json:"asn,omitempty"`
-	RTTMs float64 `json:"rtt_ms"`
-	Loss  float64 `json:"loss"`
+	Hop      int     `json:"hop"`
+	IP       string  `json:"ip"`
+	Host     string  `json:"host,omitempty"`
+	ASN      string  `json:"asn,omitempty"`
+	Location string  `json:"location,omitempty"`
+	RTTMs    float64 `json:"rtt_ms"`
+	Loss     float64 `json:"loss"`
 }

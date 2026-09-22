@@ -12,16 +12,12 @@ type Target struct {
 	Enabled  bool             `json:"enabled"`
 }
 
-// The initial targets are deliberately small and replaceable. They are used as
-// probe destinations, not as proof of a route label; classification still
-// requires evidence from the returned path.
+// These are the same carrier endpoints used by MiaoMiaoWu X's current return
+// route task. The agent traces them with NextTrace over TCP/80.
 var defaultTargets = []Target{
-	{ID: "telecom-bj-a", Carrier: "telecom", Region: "北京", Host: "202.96.199.133", IPFamily: v2.IPFamilyIPv4, Protocol: v2.TraceProtocolICMP, Enabled: true},
-	{ID: "telecom-gd-a", Carrier: "telecom", Region: "广东", Host: "202.96.134.33", IPFamily: v2.IPFamilyIPv4, Protocol: v2.TraceProtocolICMP, Enabled: true},
-	{ID: "unicom-sh-a", Carrier: "unicom", Region: "上海", Host: "210.22.70.3", IPFamily: v2.IPFamilyIPv4, Protocol: v2.TraceProtocolICMP, Enabled: true},
-	{ID: "unicom-bj-a", Carrier: "unicom", Region: "北京", Host: "210.21.196.6", IPFamily: v2.IPFamilyIPv4, Protocol: v2.TraceProtocolICMP, Enabled: true},
-	{ID: "mobile-bj-a", Carrier: "mobile", Region: "北京", Host: "221.179.155.161", IPFamily: v2.IPFamilyIPv4, Protocol: v2.TraceProtocolICMP, Enabled: true},
-	{ID: "mobile-gd-a", Carrier: "mobile", Region: "广东", Host: "211.136.17.107", IPFamily: v2.IPFamilyIPv4, Protocol: v2.TraceProtocolICMP, Enabled: true},
+	{ID: "telecom-hn-mmwx", Carrier: "telecom", Region: "湖南", Host: "hn-ct-v4.ip.zstaticcdn.com", IPFamily: v2.IPFamilyIPv4, Protocol: v2.TraceProtocolTCP, Enabled: true},
+	{ID: "unicom-js-mmwx", Carrier: "unicom", Region: "江苏", Host: "js-cu-v4.ip.zstaticcdn.com", IPFamily: v2.IPFamilyIPv4, Protocol: v2.TraceProtocolTCP, Enabled: true},
+	{ID: "mobile-gd-mmwx", Carrier: "mobile", Region: "广东", Host: "gd-cm-v4.ip.zstaticcdn.com", IPFamily: v2.IPFamilyIPv4, Protocol: v2.TraceProtocolTCP, Enabled: true},
 }
 
 func Targets() []Target {

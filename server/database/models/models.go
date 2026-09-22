@@ -79,6 +79,7 @@ type ReturnRouteSample struct {
 	RouteType  string    `gorm:"size:64"`
 	Confidence string    `gorm:"size:16"`
 	EntryIP    string    `gorm:"size:64"`
+	EntryASN   string    `gorm:"size:32"`
 	Reason     string    `gorm:"type:text"`
 	HopsJSON   string    `gorm:"type:text"`
 	OK         bool      `gorm:"index"`

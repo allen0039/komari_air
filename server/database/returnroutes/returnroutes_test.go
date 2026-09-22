@@ -13,13 +13,15 @@ func TestClassifyUsesPathEvidence(t *testing.T) {
 		hops   []v2.TraceHop
 		want   string
 	}{
-		{"telecom cn2 gia", Target{Carrier: "telecom"}, []v2.TraceHop{{Host: "cn2-gia.example"}}, "CN2 GIA"},
-		{"unicom 9929", Target{Carrier: "unicom"}, []v2.TraceHop{{ASN: "9929"}}, "9929"},
-		{"mobile cmi", Target{Carrier: "mobile"}, []v2.TraceHop{{Host: "cmi.example"}}, "CMI"},
-		{"telecom cn2 prefix", Target{Carrier: "telecom"}, []v2.TraceHop{{IP: "59.43.159.17"}}, "CN2"},
-		{"telecom ct163 rdns", Target{Carrier: "telecom"}, []v2.TraceHop{{Host: "CT163.JP.TYO.CTGNet", IP: "59.43.159.17"}}, "163"},
-		{"unicom ip prefix", Target{Carrier: "unicom"}, []v2.TraceHop{{IP: "219.158.40.169"}}, "4837"},
-		{"mobile ip prefix", Target{Carrier: "mobile"}, []v2.TraceHop{{IP: "221.183.130.134"}}, "CMI"},
+		{"dmit japan ctg gia", Target{Carrier: "telecom"}, []v2.TraceHop{{ASN: "906"}, {ASN: "AS23764"}, {IP: "59.43.189.201"}}, "CTG GIA"},
+		{"bwh unicom 9929", Target{Carrier: "unicom"}, []v2.TraceHop{{ASN: "25820"}, {ASN: "10099"}, {ASN: "9929"}, {ASN: "4837"}}, "9929"},
+		{"bwh mobile cmin2", Target{Carrier: "mobile"}, []v2.TraceHop{{ASN: "58807"}, {ASN: "9808"}}, "CMIN2"},
+		{"dmit malibu cn2 gia", Target{Carrier: "telecom"}, []v2.TraceHop{{ASN: "906"}, {ASN: "4134"}, {IP: "59.43.182.106"}}, "CN2 GIA"},
+		{"yunyou mobile 10099", Target{Carrier: "mobile"}, []v2.TraceHop{{ASN: "10099"}, {ASN: "9808"}}, "10099"},
+		{"legend sg first backbone 163", Target{Carrier: "unicom"}, []v2.TraceHop{{ASN: "216211"}, {ASN: "4134"}, {ASN: "4837"}}, "163"},
+		{"bage unicom 4837", Target{Carrier: "unicom"}, []v2.TraceHop{{ASN: "26042"}, {ASN: "6461"}, {ASN: "4837"}}, "4837"},
+		{"novix mobile cmi", Target{Carrier: "mobile"}, []v2.TraceHop{{ASN: "9808"}}, "CMI"},
+		{"unrecognized 4808", Target{Carrier: "unicom"}, []v2.TraceHop{{ASN: "4808"}}, "Unknown"},
 		{"unknown", Target{Carrier: "telecom"}, []v2.TraceHop{{IP: "192.0.2.1"}}, "Unknown"},
 	}
 	for _, tt := range tests {
@@ -32,15 +34,26 @@ func TestClassifyUsesPathEvidence(t *testing.T) {
 	}
 }
 
-func TestTargetsHaveTwoEnabledTargetsPerCarrier(t *testing.T) {
+func TestTargetsMatchMiaoMiaoWuX(t *testing.T) {
 	counts := map[string]int{}
+	wants := map[string]string{
+		"telecom": "hn-ct-v4.ip.zstaticcdn.com",
+		"unicom":  "js-cu-v4.ip.zstaticcdn.com",
+		"mobile":  "gd-cm-v4.ip.zstaticcdn.com",
+	}
 	for _, target := range Targets() {
 		if target.Enabled {
 			counts[target.Carrier]++
+			if target.Host != wants[target.Carrier] {
+				t.Fatalf("carrier %s target = %s, want %s", target.Carrier, target.Host, wants[target.Carrier])
+			}
+			if target.Protocol != v2.TraceProtocolTCP {
+				t.Fatalf("carrier %s protocol = %s, want tcp", target.Carrier, target.Protocol)
+			}
 		}
 	}
 	for _, carrier := range []string{"telecom", "unicom", "mobile"} {
-		if counts[carrier] < 2 {
+		if counts[carrier] != 1 {
 			t.Fatalf("carrier %s has %d enabled targets", carrier, counts[carrier])
 		}
 	}

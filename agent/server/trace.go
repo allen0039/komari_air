@@ -2,10 +2,19 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -16,6 +25,22 @@ import (
 )
 
 var traceSemaphore = make(chan struct{}, 1)
+
+const nextTraceVersion = "1.7.1"
+
+var nextTraceBuilds = map[string]struct {
+	url    string
+	sha256 string
+}{
+	"amd64": {
+		url:    "https://github.com/nxtrace/NTrace-core/releases/download/v1.7.1/nexttrace-tiny_linux_amd64",
+		sha256: "093849f1012b065c29d307b8e47fedec667206829c14e105f83a852f60c628d1",
+	},
+	"arm64": {
+		url:    "https://github.com/nxtrace/NTrace-core/releases/download/v1.7.1/nexttrace-tiny_linux_arm64",
+		sha256: "8b134f6c6a7864b1ecc98b1f7cfae1d058ef6dcf8f0da862e3260752ce1858bd",
+	},
+}
 
 func NewTraceTask(conn *ws.SafeConn, p v2.NextTraceParams) {
 	if p.TaskID == "" || p.TargetHost == "" {
@@ -50,6 +75,15 @@ func runTrace(p v2.NextTraceParams) v2.TraceResult {
 		return r
 	}
 	host := strings.Trim(p.TargetHost, "[]")
+	if hops, err := nextTraceIPv4(host); err == nil && len(hops) > 0 {
+		r.Protocol = v2.TraceProtocolTCP
+		r.Hops = hops
+		r.OK = true
+		r.FinishedAt = time.Now().UTC()
+		return r
+	} else if err != nil {
+		log.Printf("nexttrace unavailable for %s, falling back to native trace: %v", host, err)
+	}
 	ip := net.ParseIP(host)
 	if ip == nil {
 		addrs, err := net.LookupIP(host)
@@ -86,6 +120,163 @@ func runTrace(p v2.NextTraceParams) v2.TraceResult {
 	}
 	r.FinishedAt = time.Now().UTC()
 	return r
+}
+
+type nextTraceOutput struct {
+	Hops [][]nextTraceHop `json:"Hops"`
+}
+
+type nextTraceHop struct {
+	Success bool `json:"Success"`
+	Address *struct {
+		IP string `json:"IP"`
+	} `json:"Address"`
+	Hostname string `json:"Hostname"`
+	TTL      int    `json:"TTL"`
+	RTT      int64  `json:"RTT"`
+	Geo      *struct {
+		ASN      string `json:"asnumber"`
+		Country  string `json:"country"`
+		Province string `json:"prov"`
+		City     string `json:"city"`
+		Owner    string `json:"owner"`
+		ISP      string `json:"isp"`
+		Whois    string `json:"whois"`
+	} `json:"Geo"`
+}
+
+func nextTraceIPv4(host string) ([]v2.TraceHop, error) {
+	tool, err := ensureNextTrace()
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, tool,
+		"-4", "-T", "-p", "80", "-q", "2", "--max-attempts", "2",
+		"--timeout", "1500", "--no-rdns", "-j", host,
+	)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("nexttrace: %w", err)
+	}
+	return parseNextTrace(output)
+}
+
+func parseNextTrace(data []byte) ([]v2.TraceHop, error) {
+	var result nextTraceOutput
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("decode nexttrace json: %w", err)
+	}
+	if len(result.Hops) == 0 {
+		return nil, fmt.Errorf("nexttrace returned no hops")
+	}
+	hops := make([]v2.TraceHop, 0, len(result.Hops))
+	for index, candidates := range result.Hops {
+		hop := v2.TraceHop{Hop: index + 1, Loss: 100}
+		for _, candidate := range candidates {
+			if !candidate.Success || candidate.Address == nil || candidate.Address.IP == "" {
+				continue
+			}
+			hop.Hop = candidate.TTL
+			if hop.Hop <= 0 {
+				hop.Hop = index + 1
+			}
+			hop.IP = candidate.Address.IP
+			hop.Host = candidate.Hostname
+			hop.Loss = 0
+			hop.RTTMs = float64(candidate.RTT) / float64(time.Millisecond)
+			if candidate.Geo != nil {
+				hop.ASN = candidate.Geo.ASN
+				if hop.Host == "" {
+					hop.Host = strings.TrimSpace(strings.Join([]string{candidate.Geo.Owner, candidate.Geo.ISP, candidate.Geo.Whois}, " "))
+				}
+				hop.Location = strings.TrimSpace(strings.Join([]string{candidate.Geo.Country, candidate.Geo.Province, candidate.Geo.City}, " "))
+			}
+			break
+		}
+		hops = append(hops, hop)
+	}
+	return hops, nil
+}
+
+func ensureNextTrace() (string, error) {
+	if runtime.GOOS != "linux" {
+		return "", fmt.Errorf("nexttrace is only provisioned on linux")
+	}
+	build, ok := nextTraceBuilds[runtime.GOARCH]
+	if !ok {
+		return "", fmt.Errorf("unsupported nexttrace architecture %s", runtime.GOARCH)
+	}
+	// Reuse MiaoMiaoWu X's verified tool when both agents share a server.
+	shared := filepath.Join(os.TempDir(), "mmwx-tools", "v"+nextTraceVersion, "nexttrace")
+	if verifyExecutable(shared, build.sha256) == nil {
+		return shared, nil
+	}
+	dir := filepath.Join(os.TempDir(), "komari-tools", "nexttrace", "v"+nextTraceVersion)
+	path := filepath.Join(dir, "nexttrace")
+	if verifyExecutable(path, build.sha256) == nil {
+		return path, nil
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	client := &http.Client{Timeout: 90 * time.Second}
+	response, err := client.Get(build.url)
+	if err != nil {
+		return "", err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("download nexttrace: http %d", response.StatusCode)
+	}
+	tmp, err := os.CreateTemp(dir, ".nexttrace-*")
+	if err != nil {
+		return "", err
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if _, err = io.Copy(tmp, io.LimitReader(response.Body, 64<<20)); err != nil {
+		tmp.Close()
+		return "", err
+	}
+	if err = tmp.Close(); err != nil {
+		return "", err
+	}
+	if err = verifyFile(tmpPath, build.sha256); err != nil {
+		return "", err
+	}
+	if err = os.Chmod(tmpPath, 0o755); err != nil {
+		return "", err
+	}
+	if err = os.Rename(tmpPath, path); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func verifyExecutable(path, expected string) error {
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() || info.Mode()&0o111 == 0 {
+		return fmt.Errorf("nexttrace executable unavailable")
+	}
+	return verifyFile(path, expected)
+}
+
+func verifyFile(path, expected string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return err
+	}
+	if hex.EncodeToString(hash.Sum(nil)) != expected {
+		return fmt.Errorf("nexttrace checksum mismatch")
+	}
+	return nil
 }
 
 func nativeIPv4Trace(target net.IP, maxHops int, timeout time.Duration) ([]v2.TraceHop, error) {
