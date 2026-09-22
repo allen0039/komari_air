@@ -23,6 +23,10 @@ import (
 
 var ErrRestartRequired = errors.New("update installed; restart required")
 
+// panelUpdateTo downloads a panel-managed binary directly. It is a variable so the
+// panel update path can be verified without replacing the running test binary.
+var panelUpdateTo = selfupdate.UpdateTo
+
 var (
 	CurrentVersion string = "0.1.5"
 	Repo           string = "allen0039/komari_air"
@@ -448,17 +452,8 @@ func checkPanelUpdate() error {
 		return fmt.Errorf("failed to resolve current executable path: %w", err)
 	}
 	downloadURL := fmt.Sprintf("%s/api/public/agent/download/%s/%s", PanelBaseURL, runtime.GOOS, runtime.GOARCH)
-	updater, err := selfupdate.NewUpdater(selfupdate.Config{})
-	if err != nil {
-		return fmt.Errorf("failed to create updater: %w", err)
-	}
-	release := &selfupdate.Release{
-		Version:           semver.Version{},
-		AssetURL:          downloadURL,
-		ValidationAssetID: -1,
-	}
 	log.Printf("Updating agent from panel build %s to %s", CurrentVersion, latest)
-	if err := updater.UpdateTo(release, cmdPath); err != nil {
+	if err := panelUpdateTo(downloadURL, cmdPath); err != nil {
 		return fmt.Errorf("failed to install panel agent build %s: %w", latest, err)
 	}
 	log.Printf("Successfully updated to panel agent build %s", latest)
