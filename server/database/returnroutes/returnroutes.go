@@ -3,6 +3,7 @@ package returnroutes
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -42,6 +43,46 @@ func classify(target Target, hops []v2.TraceHop) (string, string, string) {
 	for _, candidate := range matches {
 		if strings.Contains(joined, candidate.token) {
 			return candidate.label, "medium", "matched path evidence: " + candidate.token
+		}
+	}
+
+	// Some agents return only hop IPs and reverse-DNS names without ASN data.
+	// Prefer explicit reverse-DNS labels, then use stable backbone prefixes.
+	for _, hop := range hops {
+		host := strings.ToLower(hop.Host)
+		if target.Carrier == "telecom" {
+			if strings.Contains(host, "ct163") {
+				return "163", "medium", "matched CT163 reverse DNS"
+			}
+			if strings.Contains(host, "ctcn2") {
+				return "CN2", "medium", "matched CTCN2 reverse DNS"
+			}
+		}
+	}
+	for _, hop := range hops {
+		ip := net.ParseIP(strings.TrimSpace(hop.IP))
+		if ip == nil || ip.To4() == nil {
+			continue
+		}
+		switch target.Carrier {
+		case "telecom":
+			if hasPrefix(ip, "59.43.") {
+				return "CN2", "medium", "matched China Telecom CN2 prefix"
+			}
+			if hasPrefix(ip, "202.97.") {
+				return "163", "medium", "matched China Telecom 163 prefix"
+			}
+		case "unicom":
+			if hasPrefix(ip, "218.105.") || hasPrefix(ip, "210.51.") {
+				return "9929", "medium", "matched China Unicom 9929 prefix"
+			}
+			if hasPrefix(ip, "219.158.") || hasPrefix(ip, "210.22.") || hasPrefix(ip, "139.226.") {
+				return "4837", "medium", "matched China Unicom 4837 prefix"
+			}
+		case "mobile":
+			if hasPrefix(ip, "223.120.") || hasPrefix(ip, "221.183.") || hasPrefix(ip, "221.176.") || hasPrefix(ip, "211.136.") || hasPrefix(ip, "111.24.") {
+				return "CMI", "medium", "matched China Mobile path prefix"
+			}
 		}
 	}
 	return "Unknown", "low", "no stable carrier path signature was found"
@@ -185,4 +226,8 @@ func RunScheduled() {
 
 func CleanupSamples() error {
 	return dbcore.GetDBInstance().Where("tested_at < ?", time.Now().UTC().Add(-7*24*time.Hour)).Delete(&models.ReturnRouteSample{}).Error
+}
+
+func hasPrefix(ip net.IP, prefix string) bool {
+	return strings.HasPrefix(ip.To4().String(), prefix)
 }

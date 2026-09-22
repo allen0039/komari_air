@@ -16,6 +16,10 @@ func TestClassifyUsesPathEvidence(t *testing.T) {
 		{"telecom cn2 gia", Target{Carrier: "telecom"}, []v2.TraceHop{{Host: "cn2-gia.example"}}, "CN2 GIA"},
 		{"unicom 9929", Target{Carrier: "unicom"}, []v2.TraceHop{{ASN: "9929"}}, "9929"},
 		{"mobile cmi", Target{Carrier: "mobile"}, []v2.TraceHop{{Host: "cmi.example"}}, "CMI"},
+		{"telecom cn2 prefix", Target{Carrier: "telecom"}, []v2.TraceHop{{IP: "59.43.159.17"}}, "CN2"},
+		{"telecom ct163 rdns", Target{Carrier: "telecom"}, []v2.TraceHop{{Host: "CT163.JP.TYO.CTGNet", IP: "59.43.159.17"}}, "163"},
+		{"unicom ip prefix", Target{Carrier: "unicom"}, []v2.TraceHop{{IP: "219.158.40.169"}}, "4837"},
+		{"mobile ip prefix", Target{Carrier: "mobile"}, []v2.TraceHop{{IP: "221.183.130.134"}}, "CMI"},
 		{"unknown", Target{Carrier: "telecom"}, []v2.TraceHop{{IP: "192.0.2.1"}}, "Unknown"},
 	}
 	for _, tt := range tests {
