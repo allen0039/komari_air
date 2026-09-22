@@ -43,6 +43,26 @@ func bindV2Params[T any](raw any, target *T) error {
 	return json.Unmarshal(b, target)
 }
 
+// validTraceHops accepts the two probe replies emitted by NextTrace for each
+// TTL. Return-route probes use --max-hops 30 and -q 2, so a valid result may
+// contain up to 60 candidate rows while still representing only 30 hops.
+func validTraceHops(hops []v2.TraceHop) bool {
+	if len(hops) > 60 {
+		return false
+	}
+	perTTL := make(map[int]int, len(hops))
+	for _, hop := range hops {
+		if hop.Hop < 1 || hop.Hop > 30 {
+			return false
+		}
+		perTTL[hop.Hop]++
+		if perTTL[hop.Hop] > 2 {
+			return false
+		}
+	}
+	return true
+}
+
 func syncManagedAgentConfig(uuid string) {
 	if !agent_runtime.HasV2Capability(uuid, "config:v1") {
 		return
@@ -111,7 +131,7 @@ func handleV2RPC(uuid string, req v2.Request, allowWait bool) v2.Response {
 		if encodeErr != nil || len(encoded) > 64*1024 {
 			return v2.Error(req.ID, -32602, "trace result exceeds size limit", nil)
 		}
-		if len(params.Hops) > 30 {
+		if !validTraceHops(params.Hops) {
 			return v2.Error(req.ID, -32602, "trace result exceeds hop limit", nil)
 		}
 		if err := returnroutes.SaveResult(uuid, params); err != nil {
