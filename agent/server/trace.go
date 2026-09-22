@@ -173,11 +173,12 @@ func parseNextTrace(data []byte) ([]v2.TraceHop, error) {
 	}
 	hops := make([]v2.TraceHop, 0, len(result.Hops))
 	for index, candidates := range result.Hops {
-		hop := v2.TraceHop{Hop: index + 1, Loss: 100}
+		added := false
 		for _, candidate := range candidates {
 			if !candidate.Success || candidate.Address == nil || candidate.Address.IP == "" {
 				continue
 			}
+			hop := v2.TraceHop{Hop: index + 1}
 			hop.Hop = candidate.TTL
 			if hop.Hop <= 0 {
 				hop.Hop = index + 1
@@ -193,9 +194,12 @@ func parseNextTrace(data []byte) ([]v2.TraceHop, error) {
 				}
 				hop.Location = strings.TrimSpace(strings.Join([]string{candidate.Geo.Country, candidate.Geo.Province, candidate.Geo.City}, " "))
 			}
-			break
+			hops = append(hops, hop)
+			added = true
 		}
-		hops = append(hops, hop)
+		if !added {
+			hops = append(hops, v2.TraceHop{Hop: index + 1, Loss: 100})
+		}
 	}
 	return hops, nil
 }
