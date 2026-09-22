@@ -42,6 +42,8 @@ type TraceResult struct {
 type TraceHop struct {
 	Hop   int     `json:"hop"`
 	IP    string  `json:"ip"`
+	Host  string  `json:"host,omitempty"`
+	ASN   string  `json:"asn,omitempty"`
 	RTTMs float64 `json:"rtt_ms"`
 	Loss  float64 `json:"loss"`
 }

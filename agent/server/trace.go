@@ -127,7 +127,13 @@ func nativeIPv4Trace(target net.IP, maxHops int, timeout time.Duration) ([]v2.Tr
 		if addr, ok := peer.(*net.IPAddr); ok {
 			ipStr = addr.IP.String()
 		}
-		hops = append(hops, v2.TraceHop{Hop: ttl, IP: ipStr, RTTMs: float64(time.Since(start).Microseconds()) / 1000})
+		hop := v2.TraceHop{Hop: ttl, IP: ipStr, RTTMs: float64(time.Since(start).Microseconds()) / 1000}
+		// Reverse DNS is the same signal used by common route probes (including
+		// nexttrace) and preserves carrier names such as chinanet/cmcc.
+		if names, lookupErr := net.LookupAddr(ipStr); lookupErr == nil && len(names) > 0 {
+			hop.Host = strings.TrimSuffix(names[0], ".")
+		}
+		hops = append(hops, hop)
 		if msg.Type == ipv4.ICMPTypeEchoReply || ipStr == target.String() {
 			break
 		}

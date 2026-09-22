@@ -24,6 +24,8 @@ func classify(target Target, hops []v2.TraceHop) (string, string, string) {
 		evidence = append(evidence, strings.ToLower(hop.Host), strings.ToLower(hop.IP), strings.ToLower(hop.ASN))
 	}
 	joined := strings.Join(evidence, " ")
+	// Normalize route probe spellings (AS4134, China Telecom, cmcc, etc.).
+	joined = strings.NewReplacer("_", " ", "-", " ", ".", " ", "/", " ").Replace(joined)
 	type match struct {
 		label string
 		token string
@@ -31,11 +33,11 @@ func classify(target Target, hops []v2.TraceHop) (string, string, string) {
 	matches := []match{}
 	switch target.Carrier {
 	case "telecom":
-		matches = []match{{"CN2 GIA", "cn2 gia"}, {"CN2 GIA", "cn2-gia"}, {"CN2 GT", "cn2"}, {"163", "163"}, {"163", "chinanet"}}
+		matches = []match{{"CN2 GIA", "cn2 gia"}, {"CN2 GIA", "cn2 gia"}, {"CN2 GT", "cn2 gt"}, {"163", "as4134"}, {"163", "4134"}, {"163", "chinanet"}, {"163", "telecom"}}
 	case "unicom":
-		matches = []match{{"9929", "9929"}, {"4837", "4837"}, {"4837", "chinaunicom"}}
+		matches = []match{{"9929", "as9929"}, {"9929", "9929"}, {"4837", "as4837"}, {"4837", "4837"}, {"4837", "chinaunicom"}, {"4837", "unicom"}}
 	case "mobile":
-		matches = []match{{"CMIN2", "cmin2"}, {"CMI", "cmi"}, {"CMI", "cmnet"}, {"CMI", "chinamobile"}}
+		matches = []match{{"CMIN2", "cmin2"}, {"CMIN2", "as58453"}, {"CMI", "as9808"}, {"CMI", "9808"}, {"CMI", "cmi"}, {"CMI", "cmnet"}, {"CMI", "chinamobile"}, {"CMI", "cmcc"}, {"CMI", "mobile"}}
 	}
 	for _, candidate := range matches {
 		if strings.Contains(joined, candidate.token) {
