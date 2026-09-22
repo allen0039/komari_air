@@ -5,8 +5,9 @@ import (
 
 	"github.com/komari-monitor/komari/database/auditlog"
 	"github.com/komari-monitor/komari/database/clients"
-	"github.com/komari-monitor/komari/internal/metricstore"
 	"github.com/komari-monitor/komari/database/records"
+	"github.com/komari-monitor/komari/database/returnroutes"
+	"github.com/komari-monitor/komari/internal/metricstore"
 	"github.com/komari-monitor/komari/pkg/rpc"
 	agent_runtime "github.com/komari-monitor/komari/web/agent"
 )
@@ -157,6 +158,11 @@ func adminListClients(_ context.Context, _ *rpc.JsonRpcRequest) (any, *rpc.JsonR
 	cls, err := clients.GetAllClientBasicInfo()
 	if err != nil {
 		return nil, rpc.MakeError(rpc.InternalError, err.Error(), nil)
+	}
+	for i := range cls {
+		if routes, routeErr := returnroutes.Summaries(cls[i].UUID); routeErr == nil {
+			cls[i].ReturnRoutes = routes
+		}
 	}
 	return cls, nil
 }
