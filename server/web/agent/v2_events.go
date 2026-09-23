@@ -15,6 +15,7 @@ const (
 	v2EventQueueLimit = 128
 	v2EventTTL        = 5 * time.Minute
 	v2PingEventTTL    = 3 * time.Second
+	v2TraceEventTTL   = 2 * time.Minute
 )
 
 type v2EventQueue struct {
@@ -94,6 +95,8 @@ func EnqueueV2Event(uuid, method string, params any) v2.Event {
 	ttl := v2EventTTL
 	if method == v2.MethodAgentPing {
 		ttl = v2PingEventTTL
+	} else if method == v2.MethodNetworkTestNextTrace {
+		ttl = v2TraceEventTTL
 	}
 	event := v2.Event{
 		ID:        newV2EventID(),
@@ -145,7 +148,14 @@ func v2EventCoalesceKey(event v2.Event) string {
 		return event.Method
 	}
 	if event.Method != v2.MethodAgentPing {
-		return ""
+		if event.Method != v2.MethodNetworkTestNextTrace {
+			return ""
+		}
+		var params v2.NextTraceParams
+		if err := bindV2EventParams(event.Params, &params); err != nil || params.TargetID == "" {
+			return ""
+		}
+		return fmt.Sprintf("%s:%s", event.Method, params.TargetID)
 	}
 	var params v2.PingParams
 	if err := bindV2EventParams(event.Params, &params); err != nil || params.TaskID == 0 {

@@ -21,6 +21,11 @@
           "icon": "Activity"
         },
         {
+          "labelKey": "returnRoute.title",
+          "path": "/admin/return-routes",
+          "icon": "Route"
+        },
+        {
           "labelKey": "sessions.title",
           "path": "/admin/sessions",
           "icon": "Users"

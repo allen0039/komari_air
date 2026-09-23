@@ -35,7 +35,7 @@ const (
 	v2SeenEventLimit = 4096
 )
 
-var v2Capabilities = []string{"ping", "message", "event", "config:v1"}
+var v2Capabilities = []string{"ping", "message", "event", "config:v1", "trace:v1"}
 
 func EstablishWebSocketConnection() {
 	var conn *ws.SafeConn
@@ -432,6 +432,14 @@ func processV2Event(conn *ws.SafeConn, method string, params interface{}, eventI
 		} else {
 			log.Printf("bad v2 ping params: %v", err)
 		}
+	case v2.MethodNetworkTestNextTrace:
+		var p v2.NextTraceParams
+		if err := v2.BindParams(params, &p); err != nil {
+			log.Printf("bad v2 trace params: %v", err)
+			return false
+		}
+		NewTraceTask(conn, p)
+		return true
 	case v2.MethodAgentMessage, v2.MethodAgentEvent:
 		log.Printf("received v2 %s: %+v", method, params)
 		return true

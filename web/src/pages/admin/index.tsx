@@ -1403,6 +1403,8 @@ const NodeTable = ({
   );
 };
 
+
+
 type Platform = "linux" | "windows" | "macos" | "docker";
 
 type ManagedAgentConfig = {

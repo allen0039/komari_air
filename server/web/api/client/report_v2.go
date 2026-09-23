@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/komari-monitor/komari/database/agentconfig"
 	"github.com/komari-monitor/komari/database/clients"
+	"github.com/komari-monitor/komari/database/returnroutes"
 	v2 "github.com/komari-monitor/komari/protocol/v2"
 	"github.com/komari-monitor/komari/utils/notifier"
 	agent_runtime "github.com/komari-monitor/komari/web/agent"
@@ -40,6 +41,26 @@ func bindV2Params[T any](raw any, target *T) error {
 		return err
 	}
 	return json.Unmarshal(b, target)
+}
+
+// validTraceHops accepts the two probe replies emitted by NextTrace for each
+// TTL. Return-route probes use --max-hops 30 and -q 2, so a valid result may
+// contain up to 60 candidate rows while still representing only 30 hops.
+func validTraceHops(hops []v2.TraceHop) bool {
+	if len(hops) > 60 {
+		return false
+	}
+	perTTL := make(map[int]int, len(hops))
+	for _, hop := range hops {
+		if hop.Hop < 1 || hop.Hop > 30 {
+			return false
+		}
+		perTTL[hop.Hop]++
+		if perTTL[hop.Hop] > 2 {
+			return false
+		}
+	}
+	return true
 }
 
 func syncManagedAgentConfig(uuid string) {
@@ -96,6 +117,25 @@ func handleV2RPC(uuid string, req v2.Request, allowWait bool) v2.Response {
 		}
 		if err := ingestPingResult(uuid, params.TaskID, params.Value); err != nil {
 			return v2.Error(req.ID, -32000, "failed to save ping result", err.Error())
+		}
+		return v2.Success(req.ID, gin.H{"status": "success"})
+	case v2.MethodAgentTraceResult:
+		var params v2.NextTraceResult
+		if err := bindV2Params(req.Params, &params); err != nil {
+			return v2.Error(req.ID, -32602, "invalid trace result params", err.Error())
+		}
+		if params.SourceID != "" && params.SourceID != uuid {
+			return v2.Error(req.ID, -32602, "trace result source mismatch", nil)
+		}
+		encoded, encodeErr := json.Marshal(params)
+		if encodeErr != nil || len(encoded) > 64*1024 {
+			return v2.Error(req.ID, -32602, "trace result exceeds size limit", nil)
+		}
+		if !validTraceHops(params.Hops) {
+			return v2.Error(req.ID, -32602, "trace result exceeds hop limit", nil)
+		}
+		if err := returnroutes.SaveResult(uuid, params); err != nil {
+			return v2.Error(req.ID, -32000, "failed to save trace result", err.Error())
 		}
 		return v2.Success(req.ID, gin.H{"status": "success"})
 	case v2.MethodAgentConfigReport:

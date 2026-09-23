@@ -14,6 +14,7 @@ import (
 	"github.com/komari-monitor/komari/database/accounts"
 	"github.com/komari-monitor/komari/database/auditlog"
 	d_notification "github.com/komari-monitor/komari/database/notification"
+	"github.com/komari-monitor/komari/database/returnroutes"
 	"github.com/komari-monitor/komari/database/tasks"
 	"github.com/komari-monitor/komari/internal/config"
 	"github.com/komari-monitor/komari/internal/lifecycle"
@@ -188,6 +189,9 @@ func registerScheduledWork() {
 	if err := scheduler.AddFunc("notifier:expire", "0 0 9 * * *", notifier.CheckExpireScheduledWork); err != nil {
 		logger.ErrorArgs("server", "Failed to add expire notification task:", err)
 	}
+	if err := returnroutes.ReloadSchedule(); err != nil {
+		logger.ErrorArgs("server", "Failed to add return route scheduled task:", err)
+	}
 }
 
 const taskResultRetentionDays = 30
@@ -199,6 +203,9 @@ func cleanupScheduledData() {
 	}
 	auditlog.RemoveOldLogs()
 	accounts.RemoveExpiredSessions()
+	if err := returnroutes.CleanupSamples(); err != nil {
+		logger.Errorf("server", "Failed to clean expired return route samples: %v", err)
+	}
 }
 
 func compactMetricStore(ctx context.Context) {

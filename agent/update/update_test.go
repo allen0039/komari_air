@@ -2,6 +2,8 @@ package update
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"runtime"
 	"strings"
 	"testing"
@@ -295,5 +297,43 @@ func testRelease(tag string, prerelease, draft bool, publishedAt time.Time, asse
 		HTMLURL:     "https://example.com/" + tag,
 		PublishedAt: publishedAt,
 		Assets:      assets,
+	}
+}
+
+func TestCheckPanelUpdateDownloadsFromPanel(t *testing.T) {
+	oldVersion := CurrentVersion
+	oldPanelURL := PanelBaseURL
+	oldPanelUpdateTo := panelUpdateTo
+	CurrentVersion = "0.1.6"
+	t.Cleanup(func() {
+		CurrentVersion = oldVersion
+		PanelBaseURL = oldPanelURL
+		panelUpdateTo = oldPanelUpdateTo
+	})
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/public/agent/version" {
+			t.Fatalf("version path = %q", r.URL.Path)
+		}
+		_, _ = w.Write([]byte("0.1.7"))
+	}))
+	defer server.Close()
+	PanelBaseURL = server.URL
+
+	var gotURL, gotPath string
+	panelUpdateTo = func(downloadURL, executablePath string) error {
+		gotURL, gotPath = downloadURL, executablePath
+		return nil
+	}
+
+	if err := checkPanelUpdate(); !errors.Is(err, ErrRestartRequired) {
+		t.Fatalf("checkPanelUpdate() error = %v, want ErrRestartRequired", err)
+	}
+	wantURL := server.URL + "/api/public/agent/download/" + runtime.GOOS + "/" + runtime.GOARCH
+	if gotURL != wantURL {
+		t.Fatalf("download URL = %q, want %q", gotURL, wantURL)
+	}
+	if gotPath == "" {
+		t.Fatal("panel updater received an empty executable path")
 	}
 }

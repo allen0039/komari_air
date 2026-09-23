@@ -12,6 +12,7 @@ import (
 	"github.com/komari-monitor/komari/database/clients"
 	"github.com/komari-monitor/komari/database/dbcore"
 	"github.com/komari-monitor/komari/database/models"
+	"github.com/komari-monitor/komari/database/returnroutes"
 	"github.com/komari-monitor/komari/database/tasks"
 	"github.com/komari-monitor/komari/internal/config"
 	"github.com/komari-monitor/komari/pkg/rpc"
@@ -222,6 +223,11 @@ func getNodes(ctx context.Context, req *rpc.JsonRpcRequest) (any, *rpc.JsonRpcEr
 	cinfo, err := clients.GetAllClientBasicInfo()
 	if err != nil {
 		return nil, rpc.MakeError(rpc.InternalError, "Failed to get client info", cinfo)
+	}
+	for i := range cinfo {
+		if routes, routeErr := returnroutes.Summaries(cinfo[i].UUID); routeErr == nil {
+			cinfo[i].ReturnRoutes = routes
+		}
 	}
 	meta := rpc.MetaFromContext(ctx)
 

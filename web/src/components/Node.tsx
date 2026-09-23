@@ -146,6 +146,23 @@ const Node = React.memo(
 
         <Separator size="4" className="-mt-1" />
 
+        <Flex gap="2" align="center" wrap="wrap">
+          {["telecom", "unicom", "mobile"].map((carrier) => {
+            const route = basic.return_routes?.find((item) => item.carrier === carrier);
+            const label = carrier === "telecom" ? "电信" : carrier === "unicom" ? "联通" : "移动";
+            return (
+              <Badge
+                key={carrier}
+                variant={route?.route_type && route.route_type !== "Unknown" ? "solid" : "soft"}
+                color={route?.route_type && route.route_type !== "Unknown" ? "amber" : "gray"}
+                title={route ? `${label} · ${route.stale ? "本次无法确认，显示上次结果" : route.confidence} · ${route.tested_at}` : `${label} · 尚未测试`}
+              >
+                {label} {route?.route_type || "Unknown"}{route?.stale ? "（待确认）" : ""}
+              </Badge>
+            );
+          })}
+        </Flex>
+
         <Flex direction="column" gap="2">
           <Flex justify="between" hidden={isMobile}>
             <Text size="2" color="gray">

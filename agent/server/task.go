@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -249,6 +250,20 @@ func postV2RPC(payload interface{}) error {
 	}
 	if resp.StatusCode != http.StatusOK {
 		return &httpStatusError{StatusCode: resp.StatusCode, Status: resp.Status, Body: string(respBody)}
+	}
+	if trace, ok := payload.(v2.Request); ok && trace.Method == v2.MethodAgentTraceResult {
+		receipt, err := parseV2Response(respBody)
+		if err != nil {
+			return err
+		}
+		if receipt.ID != trace.ID {
+			return fmt.Errorf("trace acknowledgement ID mismatch")
+		}
+		result, ok := receipt.Result.(map[string]interface{})
+		if !ok || result["status"] != "success" {
+			return fmt.Errorf("trace acknowledgement missing success")
+		}
+		return nil
 	}
 	if len(bytes.TrimSpace(respBody)) > 0 {
 		if _, err := parseV2Response(respBody); err != nil {
