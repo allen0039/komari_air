@@ -422,6 +422,7 @@ const DashboardContent = () => {
   const [pingTasks, setPingTasks] = useState<PublicPingTask[]>([]);
   const [renewingUuid, setRenewingUuid] = useState<string | null>(null);
   const [renewedUuids, setRenewedUuids] = useState<Set<string>>(new Set());
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   const onlineSet = useMemo(() => {
     const out = new Set<string>();
@@ -556,7 +557,7 @@ const DashboardContent = () => {
     miniChartCache.clear();
     try {
       // 首屏只等待节点、在线状态和核心指标，避免数据库统计与 Ping 汇总阻塞仪表板。
-      await Promise.allSettled([refresh(), fetchLatest(), fetchMetrics()]);
+      await Promise.allSettled([refresh(), fetchLatest()]);
       const runDeferred = () => {
         void Promise.allSettled([fetchDbSize(), fetchPingStats()]);
       };
@@ -859,15 +860,29 @@ const DashboardContent = () => {
             )}
           </Text>
         </Flex>
-        <Button
-          size="1"
-          variant="soft"
-          disabled={refreshing}
-          onClick={() => void fetchAll()}
-        >
+        <Flex gap="2">
+          <Button
+            size="1"
+            variant="soft"
+            onClick={() => {
+              setShowAnalytics(true);
+              void Promise.allSettled([fetchMetrics(), fetchPingStats()]);
+            }}
+            disabled={showAnalytics}
+          >
+            <ChartNoAxesCombined size={14} />
+            {showAnalytics ? "分析已加载" : "加载历史分析"}
+          </Button>
+          <Button
+            size="1"
+            variant="soft"
+            disabled={refreshing}
+            onClick={() => void fetchAll()}
+          >
           <RefreshCw size={14} />
-          {t("common.refresh", "Refresh")}
-        </Button>
+            {t("common.refresh", "Refresh")}
+          </Button>
+        </Flex>
       </Flex>
 
       <Flex gap="4" wrap="wrap">
@@ -1050,6 +1065,8 @@ const DashboardContent = () => {
         </Card>
       </Flex>
 
+      {showAnalytics && (
+        <>
       <Flex gap="4" wrap="wrap" align="stretch">
         <Card className="flex-1 min-w-[320px]">
           <Flex direction="column" gap="3">
@@ -1418,6 +1435,8 @@ const DashboardContent = () => {
           </Flex>
         </Flex>
       </Card>
+        </>
+      )}
     </Flex>
   );
 };
