@@ -48,7 +48,10 @@ export const NodeDetailsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const refresh = () => {
+  const refreshing = React.useRef(false);
+  const refresh = React.useCallback(() => {
+    if (refreshing.current) return;
+    refreshing.current = true;
     fetch("/api/admin/client/list")
       .then((response) => response.json())
       .then((data: NodeDetail[]) => {
@@ -58,12 +61,13 @@ export const NodeDetailsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       .catch((error) => {
         setError(error.message);
         setIsLoading(false);
-      });
-  };
+      })
+      .finally(() => { refreshing.current = false; });
+  }, []);
     React.useEffect(() => {
         setIsLoading(true);
         refresh();
-    }, []);
+    }, [refresh]);
   return (
     <NodeDetailsContext.Provider value={{ nodeDetail, isLoading, error, refresh }}>
       {children}
