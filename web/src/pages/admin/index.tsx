@@ -1244,9 +1244,6 @@ const SortableRow = ({
         />
       </TableCell>
       <TableCell>
-        <ReturnRouteCell node={node} />
-      </TableCell>
-      <TableCell>
         <ActionButtons
           node={node}
           settings={settings}
@@ -1380,7 +1377,6 @@ const NodeTable = ({
               <TableHead>{t("common.group")}</TableHead>
               <TableHead>{t("admin.nodeEdit.remark")}</TableHead>
               <TableHead>{t("admin.nodeTable.billing")}</TableHead>
-              <TableHead><ReturnRouteBulkControls /></TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
@@ -1407,152 +1403,7 @@ const NodeTable = ({
   );
 };
 
-const RETURN_ROUTE_CARRIERS = [
-  { id: "telecom", label: "电信" },
-  { id: "unicom", label: "联通" },
-  { id: "mobile", label: "移动" },
-] as const;
 
-function ReturnRouteBulkControls() {
-  const { t } = useTranslation();
-  const { call } = useRPC2Call();
-  const { refresh } = useNodeDetails();
-  const [running, setRunning] = React.useState(false);
-  const [clearing, setClearing] = React.useState(false);
-  const [clearOpen, setClearOpen] = React.useState(false);
-
-  const runAll = async () => {
-    setRunning(true);
-    try {
-      const result = await call<Record<string, never>, { accepted: number }>("admin:runAllReturnRoutes", {});
-      toast.success(t("returnRoute.started", { count: result.accepted }));
-      [3000, 9000, 18000, 30000, 45000].forEach((delay) => window.setTimeout(() => refresh(), delay));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
-    } finally {
-      setRunning(false);
-    }
-  };
-
-  const clearResults = async () => {
-    setClearing(true);
-    try {
-      await call<{ confirm: boolean }, { cleared: boolean }>("admin:clearReturnRouteResults", { confirm: true });
-      setClearOpen(false);
-      await refresh();
-      toast.success(t("returnRoute.resultsCleared"));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
-    } finally {
-      setClearing(false);
-    }
-  };
-
-  return <Flex direction="column" gap="1" align="start">
-    <span>{t("admin.nodeTable.returnRoutes", "三网探测")}</span>
-    <Flex gap="1" wrap="wrap">
-      <Button size="1" variant="soft" color="indigo" disabled={running} onClick={() => void runAll()}><Radar size={13} />{t("returnRoute.runAll")}</Button>
-      <Dialog.Root open={clearOpen} onOpenChange={setClearOpen}>
-        <Dialog.Trigger><Button size="1" variant="soft" color="red" disabled={clearing}><Trash2Icon size={13} />{t("returnRoute.clearResults")}</Button></Dialog.Trigger>
-        <Dialog.Content maxWidth="440px">
-          <Dialog.Title>{t("returnRoute.clearResults")}</Dialog.Title>
-          <Dialog.Description>{t("returnRoute.clearResultsConfirm")}</Dialog.Description>
-          <Flex justify="end" gap="2" mt="4">
-            <Dialog.Close><Button variant="soft" color="gray">{t("returnRoute.cancel")}</Button></Dialog.Close>
-            <Button color="red" disabled={clearing} onClick={() => void clearResults()}>{t("returnRoute.clearResults")}</Button>
-          </Flex>
-        </Dialog.Content>
-      </Dialog.Root>
-    </Flex>
-  </Flex>;
-}
-
-function ReturnRouteCell({ node }: { node: NodeDetail }) {
-  const { t } = useTranslation();
-  const { call } = useRPC2Call();
-  const { refresh } = useNodeDetails();
-  const [running, setRunning] = React.useState(false);
-  const routes = node.return_routes ?? [];
-
-  const run = async () => {
-    if (running) return;
-    setRunning(true);
-    try {
-      const result = await call<{ uuid: string }, { accepted: number }>(
-        "admin:runReturnRoutes",
-        { uuid: node.uuid },
-      );
-      toast.success(
-        t(
-          "admin.nodeTable.returnRoutesStarted",
-          { count: result?.accepted ?? 0 },
-        ),
-      );
-      // 探测通常需要数秒；分段刷新，让结果出现后自动更新当前列表。
-      [3000, 9000, 18000].forEach((delay) => {
-        window.setTimeout(() => refresh(), delay);
-      });
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : t("admin.nodeTable.returnRoutesFailed", "三网探测启动失败"),
-      );
-    } finally {
-      setRunning(false);
-    }
-  };
-
-  return (
-    <Flex direction="column" gap="1" style={{ minWidth: "170px" }}>
-      <Flex gap="1" wrap="wrap">
-        {RETURN_ROUTE_CARRIERS.map(({ id, label }) => {
-          const route = routes.find((item) => item.carrier === id);
-          const known = Boolean(route && route.route_type !== "Unknown");
-          const stale = Boolean(route?.stale);
-          return (
-            <span
-              key={id}
-              className="rounded px-1.5 py-0.5 text-xs"
-              style={{
-                background: stale
-                  ? "var(--orange-a3)"
-                  : known
-                    ? "var(--green-a3)"
-                    : "var(--gray-a3)",
-                color: stale
-                  ? "var(--orange-11)"
-                  : known
-                    ? "var(--green-11)"
-                    : "var(--gray-11)",
-              }}
-              title={
-                route
-                  ? `${label} · ${route.route_type} · ${route.stale ? "本次无法确认，显示上次结果" : route.confidence} · ${route.tested_at}`
-                  : `${label} · ${t("admin.nodeTable.returnRoutesUntested", "未探测")}`
-              }
-            >
-              {label.slice(0, 1)} {route?.route_type || "—"}{stale ? "（待确认）" : ""}
-            </span>
-          );
-        })}
-      </Flex>
-      <Button
-        size="1"
-        variant="soft"
-        color="indigo"
-        onClick={run}
-        disabled={running}
-        style={{ width: "fit-content" }}
-      >
-        <Radar size={13} />
-        {running
-          ? t("admin.nodeTable.returnRoutesRunning", "探测中...")
-          : t("admin.nodeTable.returnRoutesRun", "立即三网探测")}
-      </Button>
-    </Flex>
-  );
-}
 
 type Platform = "linux" | "windows" | "macos" | "docker";
 
