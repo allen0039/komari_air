@@ -1,6 +1,6 @@
 package utils
 
 var (
-	CurrentVersion = "0.1.6-beta.1"
+	CurrentVersion = "0.1.8-beta.1"
 	VersionHash    = "unknown"
 )
