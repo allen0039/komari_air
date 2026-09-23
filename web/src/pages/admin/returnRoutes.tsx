@@ -15,6 +15,7 @@ type Target = {
   ip_family: string;
   protocol: string;
   enabled: boolean;
+  probe_enabled: boolean;
 };
 
 type ProbeLog = {
@@ -46,6 +47,7 @@ export default function ReturnRoutes() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
+  const [featureSaving, setFeatureSaving] = useState(false);
   const pageSize = 20;
 
   const load = useCallback(async () => {
@@ -97,6 +99,19 @@ export default function ReturnRoutes() {
     setTargets((current) => current?.map((item) => item.id === id ? { ...item, ...patch } : item) ?? null);
   };
 
+  const setFeatureEnabled = async (enabled: boolean) => {
+    setFeatureSaving(true);
+    try {
+      await call<{ enabled: boolean }, { enabled: boolean }>("admin:setReturnRouteEnabled", { enabled });
+      setTargets((current) => current?.map((item) => ({ ...item, probe_enabled: enabled })) ?? null);
+      toast.success(enabled ? t("returnRoute.enabledSaved") : t("returnRoute.disabledSaved"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setFeatureSaving(false);
+    }
+  };
+
   const save = async () => {
     if (!targets) return;
     setSaving(true);
@@ -120,6 +135,15 @@ export default function ReturnRoutes() {
         <h1 className="text-2xl font-bold">{t("returnRoute.title")}</h1>
         <Text color="gray">{t("returnRoute.description")}</Text>
       </div>
+      <Card>
+        <Flex align="center" justify="between" gap="3" p="2">
+          <div>
+            <Text size="4" weight="bold" as="div">{t("returnRoute.featureSwitch")}</Text>
+            <Text size="2" color="gray">{t("returnRoute.featureSwitchDescription")}</Text>
+          </div>
+          <Switch checked={Boolean(targets?.[0]?.probe_enabled)} disabled={featureSaving} onCheckedChange={(enabled) => void setFeatureEnabled(enabled)} />
+        </Flex>
+      </Card>
       {targets?.map((target) => (
         <Card key={target.id}>
           <Flex direction="column" gap="3" p="2">

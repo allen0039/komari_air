@@ -755,6 +755,10 @@
   "returnRoute": {
     "title": "Return route probes",
     "description": "Configure the Telecom, Unicom and Mobile return route targets. Scheduled and manual probes use these addresses after saving.",
+    "featureSwitch": "Enable return route probes",
+    "featureSwitchDescription": "When disabled, scheduled and manual probes are skipped. Disabled by default.",
+    "enabledSaved": "Return route probes enabled",
+    "disabledSaved": "Return route probes disabled",
     "host": "Target hostname or IPv4 address",
     "region": "Region",
     "enabled": "Enabled",

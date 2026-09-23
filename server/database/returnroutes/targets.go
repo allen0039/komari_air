@@ -11,13 +11,14 @@ import (
 )
 
 type Target struct {
-	ID       string           `json:"id"`
-	Carrier  string           `json:"carrier"`
-	Region   string           `json:"region"`
-	Host     string           `json:"host"`
-	IPFamily v2.IPFamily      `json:"ip_family"`
-	Protocol v2.TraceProtocol `json:"protocol"`
-	Enabled  bool             `json:"enabled"`
+	ID           string           `json:"id"`
+	Carrier      string           `json:"carrier"`
+	Region       string           `json:"region"`
+	Host         string           `json:"host"`
+	IPFamily     v2.IPFamily      `json:"ip_family"`
+	Protocol     v2.TraceProtocol `json:"protocol"`
+	Enabled      bool             `json:"enabled"`
+	ProbeEnabled bool             `json:"probe_enabled"`
 }
 
 // These are the same carrier endpoints used by MiaoMiaoWu X's current return
@@ -31,6 +32,10 @@ var defaultTargets = []Target{
 func Targets() []Target {
 	result := make([]Target, len(defaultTargets))
 	copy(result, defaultTargets)
+	probeEnabled := ProbeEnabled()
+	for i := range result {
+		result[i].ProbeEnabled = probeEnabled
+	}
 	if config.Ready() {
 		stored, err := config.GetAs[[]Target]("return_route_targets")
 		if err == nil {
@@ -48,6 +53,16 @@ func Targets() []Target {
 	return result
 }
 
+func ProbeEnabled() bool {
+	if !config.Ready() {
+		return false
+	}
+	value, err := config.GetAs[bool]("return_route_enabled")
+	return err == nil && value
+}
+
+func SaveProbeEnabled(enabled bool) error { return config.Set("return_route_enabled", enabled) }
+
 var hostnamePattern = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9.-]{0,251}[a-zA-Z0-9])?$`)
 
 // SaveTargets preserves the three carrier identities and probe protocol.
@@ -61,6 +76,9 @@ func SaveTargets(input []Target) ([]Target, error) {
 			return nil, fmt.Errorf("duplicate target %s", target.ID)
 		}
 		byID[target.ID] = target
+	}
+	if err := SaveProbeEnabled(input[0].ProbeEnabled); err != nil {
+		return nil, err
 	}
 	result := make([]Target, len(defaultTargets))
 	for i, base := range defaultTargets {

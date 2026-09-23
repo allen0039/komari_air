@@ -266,6 +266,9 @@ func Summaries(clientID string) ([]models.ReturnRouteSummary, error) {
 }
 
 func RunForClient(clientID string) int {
+	if !ProbeEnabled() {
+		return 0
+	}
 	if !agent_runtime.HasV2Capability(clientID, "trace:v1") || !agent_runtime.IsAgentOnline(clientID) {
 		return 0
 	}
