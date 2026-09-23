@@ -489,7 +489,7 @@ const DashboardContent = () => {
 
   const fetchMetrics = useCallback(async () => {
     const now = new Date();
-    const start = new Date(now.getTime() - 24 * 3600 * 1000);
+    const start = new Date(now.getTime() - 12 * 3600 * 1000);
     try {
       const res = await call<any, QueryMetricsResponse>("public:queryMetrics", {
         metric_keys: [
@@ -555,13 +555,16 @@ const DashboardContent = () => {
     setRefreshing(true);
     miniChartCache.clear();
     try {
-      await Promise.allSettled([
-        refresh(),
-        fetchLatest(),
-        fetchMetrics(),
-        fetchDbSize(),
-        fetchPingStats(),
-      ]);
+      // 首屏只等待节点、在线状态和核心指标，避免数据库统计与 Ping 汇总阻塞仪表板。
+      await Promise.allSettled([refresh(), fetchLatest(), fetchMetrics()]);
+      const runDeferred = () => {
+        void Promise.allSettled([fetchDbSize(), fetchPingStats()]);
+      };
+      if (typeof window.requestIdleCallback === "function") {
+        window.requestIdleCallback(runDeferred, { timeout: 1500 });
+      } else {
+        window.setTimeout(runDeferred, 250);
+      }
     } finally {
       setRefreshing(false);
     }
