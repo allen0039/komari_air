@@ -1,7 +1,8 @@
 import Loading from "@/components/loading";
 import { useRPC2Call } from "@/contexts/RPC2Context";
-import { Button, Card, Flex, Switch, Text, TextField } from "@radix-ui/themes";
-import { Save } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button, Card, Dialog, Flex, Switch, Text, TextField } from "@radix-ui/themes";
+import { Play, RefreshCw, Save, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -16,6 +17,22 @@ type Target = {
   enabled: boolean;
 };
 
+type ProbeLog = {
+  id: number;
+  task_id: string;
+  client_id: string;
+  client_name: string;
+  carrier: Target["carrier"];
+  target_host: string;
+  route_type: string;
+  confidence: string;
+  reason: string;
+  ok: boolean;
+  tested_at: string;
+};
+
+type LogResponse = { logs: ProbeLog[]; total: number };
+
 export default function ReturnRoutes() {
   const { t } = useTranslation();
   const { call } = useRPC2Call();
@@ -23,6 +40,14 @@ export default function ReturnRoutes() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [logs, setLogs] = useState<ProbeLog[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
+  const pageSize = 20;
 
   const load = useCallback(async () => {
     try {
@@ -37,6 +62,51 @@ export default function ReturnRoutes() {
   }, [call]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const loadLogs = useCallback(async () => {
+    setLogsLoading(true);
+    try {
+      const result = await call<{ limit: number; offset: number }, LogResponse>("admin:listReturnRouteLogs", { limit: pageSize, offset: page * pageSize });
+      setLogs(result.logs ?? []);
+      setTotal(result.total ?? 0);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLogsLoading(false);
+    }
+  }, [call, page]);
+
+  useEffect(() => { void loadLogs(); }, [loadLogs]);
+
+  const runAll = async () => {
+    setRunning(true);
+    try {
+      const result = await call<Record<string, never>, { accepted: number }>("admin:runAllReturnRoutes", {});
+      toast.success(t("returnRoute.started", { count: result.accepted }));
+      window.setTimeout(() => void loadLogs(), 15000);
+      window.setTimeout(() => void loadLogs(), 30000);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const clearLogs = async () => {
+    setClearing(true);
+    try {
+      await call<{ confirm: boolean }, { cleared: boolean }>("admin:clearReturnRouteLogs", { confirm: true });
+      setClearOpen(false);
+      setPage(0);
+      setLogs([]);
+      setTotal(0);
+      toast.success(t("returnRoute.cleared"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setClearing(false);
+    }
+  };
 
   const update = (id: string, patch: Partial<Target>) => {
     setTargets((current) => current?.map((item) => item.id === id ? { ...item, ...patch } : item) ?? null);
@@ -92,6 +162,57 @@ export default function ReturnRoutes() {
       <Flex justify="end">
         <Button onClick={() => void save()} disabled={saving || !targets}><Save size={16} />{t("returnRoute.save")}</Button>
       </Flex>
+      <Card>
+        <Flex direction="column" gap="3" p="2">
+          <Flex align="center" justify="between" gap="3" wrap="wrap">
+            <div>
+              <Text size="4" weight="bold" as="div">{t("returnRoute.logs")}</Text>
+              <Text size="2" color="gray">{t("returnRoute.logCount", { count: total })}</Text>
+            </div>
+            <Flex gap="2" wrap="wrap">
+              <Button variant="soft" onClick={() => void loadLogs()} disabled={logsLoading}><RefreshCw size={16} />{t("returnRoute.refresh")}</Button>
+              <Button onClick={() => void runAll()} disabled={running}><Play size={16} />{t("returnRoute.runAll")}</Button>
+              <Dialog.Root open={clearOpen} onOpenChange={setClearOpen}>
+                <Dialog.Trigger><Button color="red" variant="soft" disabled={clearing}><Trash2 size={16} />{t("returnRoute.clear")}</Button></Dialog.Trigger>
+                <Dialog.Content maxWidth="440px">
+                  <Dialog.Title>{t("returnRoute.clear")}</Dialog.Title>
+                  <Dialog.Description>{t("returnRoute.clearConfirm")}</Dialog.Description>
+                  <Flex justify="end" gap="2" mt="4">
+                    <Dialog.Close><Button variant="soft" color="gray">{t("returnRoute.cancel")}</Button></Dialog.Close>
+                    <Button color="red" onClick={() => void clearLogs()} disabled={clearing}>{t("returnRoute.clear")}</Button>
+                  </Flex>
+                </Dialog.Content>
+              </Dialog.Root>
+            </Flex>
+          </Flex>
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>{t("returnRoute.time")}</TableHead>
+              <TableHead>{t("returnRoute.server")}</TableHead>
+              <TableHead>{t("returnRoute.carrier")}</TableHead>
+              <TableHead>{t("returnRoute.host")}</TableHead>
+              <TableHead>{t("returnRoute.result")}</TableHead>
+              <TableHead>{t("returnRoute.detail")}</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {logs.map((log) => <TableRow key={log.id}>
+                <TableCell>{new Date(log.tested_at).toLocaleString()}</TableCell>
+                <TableCell>{log.client_name || log.client_id}</TableCell>
+                <TableCell>{t(`returnRoute.${log.carrier}`)}</TableCell>
+                <TableCell>{log.target_host}</TableCell>
+                <TableCell>{log.ok ? log.route_type : t("returnRoute.failed")}</TableCell>
+                <TableCell className="whitespace-normal min-w-64 max-w-xl break-words">{log.reason}</TableCell>
+              </TableRow>)}
+              {!logs.length && <TableRow><TableCell colSpan={6} className="text-center">{logsLoading ? t("returnRoute.loading") : t("returnRoute.empty")}</TableCell></TableRow>}
+            </TableBody>
+          </Table>
+          <Flex justify="end" align="center" gap="2">
+            <Button variant="soft" disabled={page === 0 || logsLoading} onClick={() => setPage((value) => value - 1)}>{t("returnRoute.previous")}</Button>
+            <Text size="2">{page + 1} / {Math.max(1, Math.ceil(total / pageSize))}</Text>
+            <Button variant="soft" disabled={(page + 1) * pageSize >= total || logsLoading} onClick={() => setPage((value) => value + 1)}>{t("returnRoute.next")}</Button>
+          </Flex>
+        </Flex>
+      </Card>
     </Flex>
   );
 }

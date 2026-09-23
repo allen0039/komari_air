@@ -285,13 +285,69 @@ func RunForClient(clientID string) int {
 func RunScheduled() {
 	scheduleMu.Lock()
 	defer scheduleMu.Unlock()
+	_, _ = RunAll()
+}
+
+// RunAll dispatches enabled targets to every online capable agent.
+func RunAll() (int, error) {
 	all, err := clients.GetAllClientBasicInfo()
 	if err != nil {
-		return
+		return 0, err
 	}
+	accepted := 0
 	for _, client := range all {
-		RunForClient(client.UUID)
+		accepted += RunForClient(client.UUID)
 	}
+	return accepted, nil
+}
+
+type ProbeLog struct {
+	ID         uint      `json:"id"`
+	TaskID     string    `json:"task_id"`
+	ClientID   string    `json:"client_id"`
+	ClientName string    `json:"client_name"`
+	Carrier    string    `json:"carrier"`
+	TargetHost string    `json:"target_host"`
+	RouteType  string    `json:"route_type"`
+	Confidence string    `json:"confidence"`
+	Reason     string    `json:"reason"`
+	OK         bool      `json:"ok"`
+	TestedAt   time.Time `json:"tested_at"`
+}
+
+func ListLogs(limit, offset int) ([]ProbeLog, int64, error) {
+	if limit < 1 || limit > 100 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	db := dbcore.GetDBInstance()
+	var total int64
+	if err := db.Model(&models.ReturnRouteSample{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var logs []ProbeLog
+	err := db.Table("return_route_samples AS samples").
+		Select("samples.id, samples.task_id, samples.client_id, clients.name AS client_name, samples.carrier, samples.target_host, samples.route_type, samples.confidence, samples.reason, samples.ok, samples.tested_at").
+		Joins("LEFT JOIN clients ON clients.uuid = samples.client_id").
+		Order("samples.tested_at DESC, samples.id DESC").Limit(limit).Offset(offset).Scan(&logs).Error
+	return logs, total, err
+}
+
+func ClearLogs() error {
+	resultMu.Lock()
+	defer resultMu.Unlock()
+	return clearLogs(dbcore.GetDBInstance())
+}
+
+func clearLogs(db *gorm.DB) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&models.ReturnRouteSample{}).Error; err != nil {
+			return err
+		}
+		return tx.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&models.ReturnRouteResult{}).Error
+	})
 }
 
 func CleanupSamples() error {

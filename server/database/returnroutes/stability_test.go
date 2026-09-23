@@ -48,3 +48,35 @@ func TestSummaryRequiresConfirmationAndRetainsLastValid(t *testing.T) {
 		}
 	}
 }
+
+func TestClearLogsRemovesOnlyReturnRouteData(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&models.ReturnRouteSample{}, &models.ReturnRouteResult{}, &models.Client{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&models.Client{UUID: "node", Token: "token", Name: "Node"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&models.ReturnRouteSample{ClientID: "node", Carrier: "unicom"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&models.ReturnRouteResult{ClientID: "node", Carrier: "unicom"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := clearLogs(db); err != nil {
+		t.Fatal(err)
+	}
+	for _, model := range []any{&models.ReturnRouteSample{}, &models.ReturnRouteResult{}} {
+		var count int64
+		if err := db.Model(model).Count(&count).Error; err != nil || count != 0 {
+			t.Fatalf("return route data remains: count=%d err=%v", count, err)
+		}
+	}
+	var clients int64
+	if err := db.Model(&models.Client{}).Count(&clients).Error; err != nil || clients != 1 {
+		t.Fatalf("client changed: count=%d err=%v", clients, err)
+	}
+}
