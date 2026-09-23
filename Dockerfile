@@ -1,10 +1,14 @@
-FROM node:22-alpine AS web-builder
+# Web assets are platform-independent. Build them on the native runner once
+# instead of rebuilding them under QEMU for every target image.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS web-builder
 
 WORKDIR /src/web
 COPY web/ ./
 RUN npm ci && npm run build
 
-FROM golang:1.25-bookworm AS agent-builder
+# Agent artifacts are cross-compiled explicitly below and are also platform-
+# independent, so keep this stage on the native build platform.
+FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS agent-builder
 
 WORKDIR /src/agent
 ARG KOMARI_VERSION
@@ -45,7 +49,7 @@ COPY --from=web-builder /src/web/komari-theme.json web/public/defaultTheme/komar
 
 RUN mkdir -p web/public/defaultTheme \
     && tar -cf /tmp/komari-web.tar -C /src/web-dist . \
-    && zstd -19 -T0 -f /tmp/komari-web.tar -o web/public/defaultTheme/dist.tar.zst \
+    && zstd -6 -T0 -f /tmp/komari-web.tar -o web/public/defaultTheme/dist.tar.zst \
     && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/komari-monitor/komari/utils.CurrentVersion=${KOMARI_VERSION} -X github.com/komari-monitor/komari/utils.VersionHash=${KOMARI_COMMIT}" -o /out/komari .
 
 FROM debian:bookworm-slim
