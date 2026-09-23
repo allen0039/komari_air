@@ -59,6 +59,19 @@ func TestTargetsMatchMiaoMiaoWuX(t *testing.T) {
 	}
 }
 
+func TestValidTargetHost(t *testing.T) {
+	for _, host := range []string{"hn-ct-v4.ip.zstaticcdn.com", "1.1.1.1"} {
+		if !validTargetHost(host) {
+			t.Fatalf("valid host rejected: %s", host)
+		}
+	}
+	for _, host := range []string{"", "127.0.0.1", "10.0.0.1", "::1", "bad..name", "-bad.example", "bad-.example", "bad/name"} {
+		if validTargetHost(host) {
+			t.Fatalf("invalid host accepted: %s", host)
+		}
+	}
+}
+
 func TestCUIIMetadataWithoutASN(t *testing.T) {
 	for _, tc := range []struct{ name, asn, host, want string }{
 		{"BWH missing ASN", "", "chinaunicom.cn 联通 CUII 中国联通 CNC-BACKBONE", "9929"},

@@ -14,6 +14,7 @@ import (
 
 func init() {
 	RegisterWithGroupAndMeta("listReturnRouteTargets", rpc.RoleAdmin, adminListReturnRouteTargets, &rpc.MethodMeta{Name: "admin:listReturnRouteTargets", Summary: "List configured return route targets", Returns: "ReturnRouteTarget[]"})
+	RegisterWithGroupAndMeta("saveReturnRouteTargets", rpc.RoleAdmin, adminSaveReturnRouteTargets, &rpc.MethodMeta{Name: "admin:saveReturnRouteTargets", Summary: "Save three return route targets", Params: []rpc.ParamMeta{{Name: "targets", Type: "ReturnRouteTarget[]", Required: true}}, Returns: "ReturnRouteTarget[]"})
 	RegisterWithGroupAndMeta("runReturnRoutes", rpc.RoleAdmin, adminRunReturnRoutes, &rpc.MethodMeta{Name: "admin:runReturnRoutes", Summary: "Run all configured return route targets on a client", Params: []rpc.ParamMeta{{Name: "uuid", Type: "string", Required: true}}, Returns: "{ accepted: number }"})
 	RegisterWithGroupAndMeta("runReturnRoute", rpc.RoleAdmin, adminRunReturnRoute, &rpc.MethodMeta{Name: "admin:runReturnRoute", Summary: "Run a return route trace on a client", Params: []rpc.ParamMeta{{Name: "uuid", Type: "string", Required: true}, {Name: "target_id", Type: "string", Required: true}, {Name: "target_host", Type: "string", Required: true}}, Returns: "{ accepted: boolean, task_id: string }"})
 	RegisterWithGroupAndMeta("getReturnRoutes", rpc.RoleAdmin, adminGetReturnRoutes, &rpc.MethodMeta{Name: "admin:getReturnRoutes", Summary: "Get return route summaries", Params: []rpc.ParamMeta{{Name: "uuid", Type: "string", Required: true}}, Returns: "ReturnRouteSummary[]"})
@@ -21,6 +22,20 @@ func init() {
 
 func adminListReturnRouteTargets(_ context.Context, _ *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {
 	return returnroutes.Targets(), nil
+}
+
+func adminSaveReturnRouteTargets(_ context.Context, req *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {
+	var p struct {
+		Targets []returnroutes.Target `json:"targets"`
+	}
+	if err := req.BindParams(&p); err != nil {
+		return nil, rpc.MakeError(rpc.InvalidParams, "targets are required", nil)
+	}
+	targets, err := returnroutes.SaveTargets(p.Targets)
+	if err != nil {
+		return nil, rpc.MakeError(rpc.InvalidParams, err.Error(), nil)
+	}
+	return targets, nil
 }
 
 func adminRunReturnRoutes(_ context.Context, req *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {

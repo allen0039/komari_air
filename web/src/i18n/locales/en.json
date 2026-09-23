@@ -752,6 +752,20 @@
     "title": "Operations",
     "workbench": "Workbench"
   },
+  "returnRoute": {
+    "title": "Return route probes",
+    "description": "Configure the Telecom, Unicom and Mobile return route targets. Scheduled and manual probes use these addresses after saving.",
+    "host": "Target hostname or IPv4 address",
+    "region": "Region",
+    "enabled": "Enabled",
+    "save": "Save settings",
+    "saved": "Return route settings saved",
+    "failed": "Failed to save",
+    "telecom": "Telecom",
+    "unicom": "Unicom",
+    "mobile": "Mobile",
+    "note": "Each carrier keeps its identity. Existing results update on the next probe."
+  },
   "page_not_found": "The server cannot find the specific page you're trying to access.",
   "ping": {
     "all_servers": "All servers",

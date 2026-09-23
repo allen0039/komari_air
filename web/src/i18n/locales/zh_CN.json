@@ -752,6 +752,20 @@
     "title": "运维",
     "workbench": "工作台"
   },
+  "returnRoute": {
+    "title": "三网探测",
+    "description": "设置电信、联通、移动回程探测目标。修改后，新的定时探测和手动探测都会使用这里的地址。",
+    "host": "目标域名或 IPv4 地址",
+    "region": "地区",
+    "enabled": "启用",
+    "save": "保存设置",
+    "saved": "三网探测设置已保存",
+    "failed": "保存失败",
+    "telecom": "电信",
+    "unicom": "联通",
+    "mobile": "移动",
+    "note": "每条线路保留独立身份；修改目标后，已有结果会在下一次探测时更新。"
+  },
   "page_not_found": "真不巧，网页被小鞠吃掉了。",
   "ping": {
     "all_servers": "全部服务器",
