@@ -1037,6 +1037,8 @@ const Header = ({
   const { refresh } = useNodeDetails();
   const [loading, setLoading] = useState(false);
   const [updatingAgents, setUpdatingAgents] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeStatuses, setUpgradeStatuses] = useState<Record<string, string>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const handleAddNode = async (name: string | undefined) => {
@@ -1066,10 +1068,24 @@ const Header = ({
       const response = await fetch("/api/rpc2", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method: "admin:forceUpdateAgents", params: {} }) });
       const payload = await response.json();
       if (payload.error) throw new Error(payload.error.message || "update failed");
-      toast.success(t("admin.nodeTable.agentUpdateStarted", { count: payload.result?.accepted ?? 0 }));
+      toast.success(t("admin.nodeTable.agentUpdateStarted", { count: payload.result?.queued ?? 0 }));
+      setUpgradeOpen(true);
     } catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
     finally { setUpdatingAgents(false); }
   };
+  useEffect(() => {
+    if (!upgradeOpen) return;
+    const poll = async () => {
+      try {
+        const response = await fetch("/api/rpc2", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method: "admin:getAgentUpgradeStatus", params: {} }) });
+        const payload = await response.json();
+        if (!payload.error) setUpgradeStatuses(payload.result || {});
+      } catch { /* next poll retries */ }
+    };
+    void poll();
+    const timer = window.setInterval(poll, 2000);
+    return () => window.clearInterval(timer);
+  }, [upgradeOpen]);
   return (
     <Flex justify="between" align="center" gap="4" wrap="wrap">
       <Flex gap="2" align="center">
@@ -1084,6 +1100,17 @@ const Header = ({
         <Button variant="soft" onClick={() => void forceUpdateAgents()} disabled={updatingAgents}>
           <Download size={16} />{updatingAgents ? t("admin.nodeTable.agentUpdating") : t("admin.nodeTable.agentUpdateAll")}
         </Button>
+        <Dialog.Root open={upgradeOpen} onOpenChange={setUpgradeOpen}>
+          <Dialog.Content style={{ maxWidth: 720 }}>
+            <Dialog.Title>Agent 梯次升级</Dialog.Title>
+            <Dialog.Description>每批 2 台，间隔 15 秒；状态每 2 秒刷新，失败节点会明确标记。</Dialog.Description>
+            <Flex direction="column" gap="2" mt="3" style={{ maxHeight: 420, overflow: "auto" }}>
+              {Object.entries(upgradeStatuses).map(([uuid, status]) => {
+                return <Flex key={uuid} justify="between" align="center" p="2" style={{ border: "1px solid var(--gray-a6)", borderRadius: 8 }}><Text>{uuid}</Text><Text color={status === "升级中" ? "blue" : status === "离线或不支持" ? "red" : "green"}>{status}</Text></Flex>;
+              })}
+            </Flex>
+          </Dialog.Content>
+        </Dialog.Root>
         <TextField.Root
           placeholder={t("admin.nodeTable.searchByName")}
           value={searchTerm}
