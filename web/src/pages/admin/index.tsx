@@ -1474,11 +1474,11 @@ function ReturnRouteCell({ node }: { node: NodeDetail }) {
               }}
               title={
                 route
-                  ? `${label} · ${route.route_type} · ${route.confidence}`
+                  ? `${label} · ${route.route_type} · ${route.stale ? "本次无法确认，显示上次结果" : route.confidence} · ${route.tested_at}`
                   : `${label} · ${t("admin.nodeTable.returnRoutesUntested", "未探测")}`
               }
             >
-              {label.slice(0, 1)} {route?.route_type || "—"}
+              {label.slice(0, 1)} {route?.route_type || "—"}{stale ? "（待确认）" : ""}
             </span>
           );
         })}

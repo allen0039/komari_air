@@ -18,6 +18,7 @@ import (
 )
 
 var scheduleMu sync.Mutex
+var resultMu sync.Mutex
 
 func classify(target Target, hops []v2.TraceHop) (string, string, string) {
 	_ = target // The route is classified from the path, not from the destination carrier.
@@ -140,6 +141,8 @@ func routeEntry(routeType string, hops []v2.TraceHop) (string, string) {
 }
 
 func SaveResult(clientID string, result v2.NextTraceResult) error {
+	resultMu.Lock()
+	defer resultMu.Unlock()
 	target, ok := TargetByID(result.TargetID)
 	if !ok {
 		return fmt.Errorf("unknown return route target %q", result.TargetID)
@@ -161,22 +164,63 @@ func SaveResult(clientID string, result v2.NextTraceResult) error {
 		return err
 	}
 	db := dbcore.GetDBInstance()
-	sample := models.ReturnRouteSample{ClientID: clientID, Carrier: target.Carrier, TargetID: target.ID, TargetHost: target.Host, RouteType: routeType, Confidence: confidence, EntryIP: entryIP, EntryASN: entryASN, Reason: reason, HopsJSON: string(hopsJSON), OK: result.OK, TestedAt: now}
-	if err := db.Create(&sample).Error; err != nil {
-		return err
+	sample := models.ReturnRouteSample{TaskID: result.TaskID, ClientID: clientID, Carrier: target.Carrier, TargetID: target.ID, TargetHost: target.Host, RouteType: routeType, Confidence: confidence, EntryIP: entryIP, EntryASN: entryASN, Reason: reason, HopsJSON: string(hopsJSON), OK: result.OK, TestedAt: now}
+	var retry bool
+	err = db.Transaction(func(tx *gorm.DB) error {
+		// Retries reuse the original timestamp; a lost acknowledgement must
+		// not turn one observation into two confirmations.
+		var count int64
+		if err := tx.Model(&models.ReturnRouteSample{}).Where("client_id = ? AND task_id = ? AND task_id <> ''", clientID, result.TaskID).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return nil
+		}
+		if err := tx.Create(&sample).Error; err != nil {
+			return err
+		}
+		if err := aggregateClientCarrier(tx, clientID, target.Carrier, now); err != nil {
+			return err
+		}
+		var row models.ReturnRouteResult
+		if err := tx.Where("client_id = ? AND carrier = ?", clientID, target.Carrier).First(&row).Error; err != nil {
+			return err
+		}
+		retry = row.Stale
+		return nil
+	})
+	if err == nil && retry && !strings.HasSuffix(result.TaskID, ":retry") {
+		agent_runtime.DispatchV2Event(clientID, v2.MethodNetworkTestNextTrace, v2.NextTraceParams{
+			TaskID: result.TaskID + ":retry", SourceID: clientID, TargetID: target.ID,
+			TargetHost: target.Host, IPFamily: target.IPFamily, Protocol: target.Protocol,
+			MaxHops: 30, TimeoutMs: 20000,
+		})
 	}
-	return aggregateClientCarrier(db, clientID, target.Carrier, now)
+	return err
 }
 
 func aggregateClientCarrier(db *gorm.DB, clientID, carrier string, now time.Time) error {
-	var latest models.ReturnRouteSample
-	if err := db.Where("client_id = ? AND carrier = ? AND ok = ?", clientID, carrier, true).Order("tested_at desc, id desc").First(&latest).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return touchSummary(db, clientID, carrier, now, nil)
-		}
+	var samples []models.ReturnRouteSample
+	if err := db.Where("client_id = ? AND carrier = ?", clientID, carrier).Order("tested_at desc, id desc").Limit(2).Find(&samples).Error; err != nil {
 		return err
 	}
-	return touchSummary(db, clientID, carrier, now, &latest)
+	var row models.ReturnRouteResult
+	err := db.Where("client_id = ? AND carrier = ?", clientID, carrier).First(&row).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return err
+	}
+	if len(samples) == 0 {
+		return touchSummary(db, clientID, carrier, now, nil)
+	}
+	latest := &samples[0]
+	if latest.OK && latest.RouteType != "Unknown" && latest.Confidence == "high" {
+		unchanged := row.RouteType == "" || row.RouteType == "Unknown" || row.RouteType == latest.RouteType
+		confirmed := len(samples) > 1 && samples[1].OK && samples[1].Confidence == "high" && samples[1].RouteType == latest.RouteType
+		if unchanged || confirmed {
+			return touchSummary(db, clientID, carrier, now, latest)
+		}
+	}
+	return touchSummary(db, clientID, carrier, now, nil)
 }
 
 func touchSummary(db *gorm.DB, clientID, carrier string, now time.Time, sample *models.ReturnRouteSample) error {
@@ -187,6 +231,9 @@ func touchSummary(db *gorm.DB, clientID, carrier string, now time.Time, sample *
 	}
 	if err == gorm.ErrRecordNotFound {
 		row = models.ReturnRouteResult{ClientID: clientID, Carrier: carrier}
+	}
+	if row.LastAttempt.After(now) {
+		now = row.LastAttempt
 	}
 	row.LastAttempt = now
 	if sample != nil {
@@ -201,7 +248,7 @@ func touchSummary(db *gorm.DB, clientID, carrier string, now time.Time, sample *
 	} else if row.TestedAt.IsZero() {
 		row.RouteType, row.Confidence, row.Reason, row.TestedAt, row.Stale = "Unknown", "low", "没有成功的探测结果", now, true
 	} else {
-		row.Stale = time.Since(row.TestedAt) > 48*time.Hour
+		row.Stale = true
 	}
 	return db.Save(&row).Error
 }

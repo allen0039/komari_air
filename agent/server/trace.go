@@ -53,16 +53,20 @@ func NewTraceTask(conn *ws.SafeConn, p v2.NextTraceParams) {
 		log.Printf("trace task started: task=%s target=%s", p.TaskID, p.TargetID)
 		result := runTrace(p)
 		log.Printf("trace task finished: task=%s target=%s ok=%t hops=%d error=%q", p.TaskID, p.TargetID, result.OK, len(result.Hops), result.Error)
+		// HTTP gives a receipt from the server, unlike a WS notification.
 		payload := v2.BuildTraceResultPayload(result)
-		if conn != nil {
-			if err := conn.WriteJSON(payload); err != nil {
-				log.Printf("failed to send trace result: %v", err)
+		payload.ID = result.TaskID
+		for attempt := 0; attempt < 3; attempt++ {
+			if err := postV2RPC(payload); err == nil {
+				log.Printf("trace result acknowledged: task=%s", result.TaskID)
+				return
 			}
-			return
+			log.Printf("trace result upload failed: task=%s attempt=%d", result.TaskID, attempt+1)
+			if attempt < 2 {
+				time.Sleep(time.Duration(attempt+1) * 2 * time.Second)
+			}
 		}
-		if err := postV2RPC(payload); err != nil {
-			log.Printf("failed to upload trace result: %v", err)
-		}
+		log.Printf("trace result upload exhausted: task=%s", result.TaskID)
 	}()
 }
 
@@ -81,42 +85,13 @@ func runTrace(p v2.NextTraceParams) v2.TraceResult {
 		r.OK = true
 		r.FinishedAt = time.Now().UTC()
 		return r
-	} else if err != nil {
-		log.Printf("nexttrace unavailable for %s, falling back to native trace: %v", host, err)
-	}
-	ip := net.ParseIP(host)
-	if ip == nil {
-		addrs, err := net.LookupIP(host)
-		if err != nil {
-			r.Error = err.Error()
-			r.FinishedAt = time.Now().UTC()
-			return r
+	} else {
+		r.Protocol = v2.TraceProtocolTCP
+		if err == nil {
+			r.Error = "NextTrace returned no hops"
+		} else {
+			r.Error = fmt.Sprintf("NextTrace failed: %v", err)
 		}
-		for _, candidate := range addrs {
-			if candidate.To4() != nil {
-				ip = candidate.To4()
-				break
-			}
-		}
-	}
-	if ip == nil || ip.To4() == nil {
-		r.Error = "target has no ipv4 address"
-		r.FinishedAt = time.Now().UTC()
-		return r
-	}
-	maxHops := p.MaxHops
-	if maxHops <= 0 || maxHops > 30 {
-		maxHops = 30
-	}
-	timeout := time.Duration(p.TimeoutMs) * time.Millisecond
-	if timeout <= 0 || timeout > 20*time.Second {
-		timeout = 20 * time.Second
-	}
-	hops, err := nativeIPv4Trace(ip.To4(), maxHops, timeout)
-	r.Hops = hops
-	r.OK = err == nil && len(hops) > 0
-	if err != nil {
-		r.Error = err.Error()
 	}
 	r.FinishedAt = time.Now().UTC()
 	return r

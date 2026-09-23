@@ -72,6 +72,7 @@ type ReturnRouteResult struct {
 
 type ReturnRouteSample struct {
 	ID         uint      `gorm:"primaryKey"`
+	TaskID     string    `gorm:"index;size:128"`
 	ClientID   string    `gorm:"index"`
 	Carrier    string    `gorm:"index;size:20"`
 	TargetID   string    `gorm:"index;size:128"`

@@ -155,9 +155,9 @@ const Node = React.memo(
                 key={carrier}
                 variant={route?.route_type && route.route_type !== "Unknown" ? "solid" : "soft"}
                 color={route?.route_type && route.route_type !== "Unknown" ? "amber" : "gray"}
-                title={route ? `${label} · ${route.confidence} · ${route.tested_at}` : `${label} · 尚未测试`}
+                title={route ? `${label} · ${route.stale ? "本次无法确认，显示上次结果" : route.confidence} · ${route.tested_at}` : `${label} · 尚未测试`}
               >
-                {label} {route?.route_type || "Unknown"}
+                {label} {route?.route_type || "Unknown"}{route?.stale ? "（待确认）" : ""}
               </Badge>
             );
           })}
