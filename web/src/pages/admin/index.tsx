@@ -1380,7 +1380,7 @@ const NodeTable = ({
               <TableHead>{t("common.group")}</TableHead>
               <TableHead>{t("admin.nodeEdit.remark")}</TableHead>
               <TableHead>{t("admin.nodeTable.billing")}</TableHead>
-              <TableHead>{t("admin.nodeTable.returnRoutes", "三网探测")}</TableHead>
+              <TableHead><ReturnRouteBulkControls /></TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
@@ -1412,6 +1412,60 @@ const RETURN_ROUTE_CARRIERS = [
   { id: "unicom", label: "联通" },
   { id: "mobile", label: "移动" },
 ] as const;
+
+function ReturnRouteBulkControls() {
+  const { t } = useTranslation();
+  const { call } = useRPC2Call();
+  const { refresh } = useNodeDetails();
+  const [running, setRunning] = React.useState(false);
+  const [clearing, setClearing] = React.useState(false);
+  const [clearOpen, setClearOpen] = React.useState(false);
+
+  const runAll = async () => {
+    setRunning(true);
+    try {
+      const result = await call<Record<string, never>, { accepted: number }>("admin:runAllReturnRoutes", {});
+      toast.success(t("returnRoute.started", { count: result.accepted }));
+      [3000, 9000, 18000, 30000, 45000].forEach((delay) => window.setTimeout(() => refresh(), delay));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const clearResults = async () => {
+    setClearing(true);
+    try {
+      await call<{ confirm: boolean }, { cleared: boolean }>("admin:clearReturnRouteResults", { confirm: true });
+      setClearOpen(false);
+      await refresh();
+      toast.success(t("returnRoute.resultsCleared"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  return <Flex direction="column" gap="1" align="start">
+    <span>{t("admin.nodeTable.returnRoutes", "三网探测")}</span>
+    <Flex gap="1" wrap="wrap">
+      <Button size="1" variant="soft" color="indigo" disabled={running} onClick={() => void runAll()}><Radar size={13} />{t("returnRoute.runAll")}</Button>
+      <Dialog.Root open={clearOpen} onOpenChange={setClearOpen}>
+        <Dialog.Trigger><Button size="1" variant="soft" color="red" disabled={clearing}><Trash2Icon size={13} />{t("returnRoute.clearResults")}</Button></Dialog.Trigger>
+        <Dialog.Content maxWidth="440px">
+          <Dialog.Title>{t("returnRoute.clearResults")}</Dialog.Title>
+          <Dialog.Description>{t("returnRoute.clearResultsConfirm")}</Dialog.Description>
+          <Flex justify="end" gap="2" mt="4">
+            <Dialog.Close><Button variant="soft" color="gray">{t("returnRoute.cancel")}</Button></Dialog.Close>
+            <Button color="red" disabled={clearing} onClick={() => void clearResults()}>{t("returnRoute.clearResults")}</Button>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
+    </Flex>
+  </Flex>;
+}
 
 function ReturnRouteCell({ node }: { node: NodeDetail }) {
   const { t } = useTranslation();

@@ -201,7 +201,7 @@ func SaveResult(clientID string, result v2.NextTraceResult) error {
 
 func aggregateClientCarrier(db *gorm.DB, clientID, carrier string, now time.Time) error {
 	var samples []models.ReturnRouteSample
-	if err := db.Where("client_id = ? AND carrier = ?", clientID, carrier).Order("tested_at desc, id desc").Limit(2).Find(&samples).Error; err != nil {
+	if err := db.Where("client_id = ? AND carrier = ? AND archived = ?", clientID, carrier, false).Order("tested_at desc, id desc").Limit(2).Find(&samples).Error; err != nil {
 		return err
 	}
 	var row models.ReturnRouteResult
@@ -342,8 +342,20 @@ func ClearLogs() error {
 }
 
 func clearLogs(db *gorm.DB) error {
+	return db.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&models.ReturnRouteSample{}).Error
+}
+
+// ClearResults removes visible labels while retaining the historical probe log.
+// Existing samples are archived so a later probe cannot reuse pre-clear evidence.
+func ClearResults() error {
+	resultMu.Lock()
+	defer resultMu.Unlock()
+	return clearResults(dbcore.GetDBInstance())
+}
+
+func clearResults(db *gorm.DB) error {
 	return db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&models.ReturnRouteSample{}).Error; err != nil {
+		if err := tx.Model(&models.ReturnRouteSample{}).Where("archived = ?", false).Update("archived", true).Error; err != nil {
 			return err
 		}
 		return tx.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&models.ReturnRouteResult{}).Error

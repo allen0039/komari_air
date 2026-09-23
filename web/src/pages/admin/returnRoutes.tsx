@@ -2,7 +2,7 @@ import Loading from "@/components/loading";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button, Card, Dialog, Flex, Switch, Text, TextField } from "@radix-ui/themes";
-import { Play, RefreshCw, Save, Trash2 } from "lucide-react";
+import { RefreshCw, Save, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -44,7 +44,6 @@ export default function ReturnRoutes() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [logsLoading, setLogsLoading] = useState(false);
-  const [running, setRunning] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const pageSize = 20;
@@ -78,20 +77,6 @@ export default function ReturnRoutes() {
 
   useEffect(() => { void loadLogs(); }, [loadLogs]);
 
-  const runAll = async () => {
-    setRunning(true);
-    try {
-      const result = await call<Record<string, never>, { accepted: number }>("admin:runAllReturnRoutes", {});
-      toast.success(t("returnRoute.started", { count: result.accepted }));
-      window.setTimeout(() => void loadLogs(), 15000);
-      window.setTimeout(() => void loadLogs(), 30000);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
-    } finally {
-      setRunning(false);
-    }
-  };
-
   const clearLogs = async () => {
     setClearing(true);
     try {
@@ -100,7 +85,7 @@ export default function ReturnRoutes() {
       setPage(0);
       setLogs([]);
       setTotal(0);
-      toast.success(t("returnRoute.cleared"));
+      toast.success(t("returnRoute.logsCleared"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
@@ -171,15 +156,14 @@ export default function ReturnRoutes() {
             </div>
             <Flex gap="2" wrap="wrap">
               <Button variant="soft" onClick={() => void loadLogs()} disabled={logsLoading}><RefreshCw size={16} />{t("returnRoute.refresh")}</Button>
-              <Button onClick={() => void runAll()} disabled={running}><Play size={16} />{t("returnRoute.runAll")}</Button>
               <Dialog.Root open={clearOpen} onOpenChange={setClearOpen}>
-                <Dialog.Trigger><Button color="red" variant="soft" disabled={clearing}><Trash2 size={16} />{t("returnRoute.clear")}</Button></Dialog.Trigger>
+                <Dialog.Trigger><Button color="red" variant="soft" disabled={clearing}><Trash2 size={16} />{t("returnRoute.clearLogs")}</Button></Dialog.Trigger>
                 <Dialog.Content maxWidth="440px">
-                  <Dialog.Title>{t("returnRoute.clear")}</Dialog.Title>
-                  <Dialog.Description>{t("returnRoute.clearConfirm")}</Dialog.Description>
+                  <Dialog.Title>{t("returnRoute.clearLogs")}</Dialog.Title>
+                  <Dialog.Description>{t("returnRoute.clearLogsConfirm")}</Dialog.Description>
                   <Flex justify="end" gap="2" mt="4">
                     <Dialog.Close><Button variant="soft" color="gray">{t("returnRoute.cancel")}</Button></Dialog.Close>
-                    <Button color="red" onClick={() => void clearLogs()} disabled={clearing}>{t("returnRoute.clear")}</Button>
+                    <Button color="red" onClick={() => void clearLogs()} disabled={clearing}>{t("returnRoute.clearLogs")}</Button>
                   </Flex>
                 </Dialog.Content>
               </Dialog.Root>

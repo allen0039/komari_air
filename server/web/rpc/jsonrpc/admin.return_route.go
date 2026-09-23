@@ -20,7 +20,8 @@ func init() {
 	RegisterWithGroupAndMeta("getReturnRoutes", rpc.RoleAdmin, adminGetReturnRoutes, &rpc.MethodMeta{Name: "admin:getReturnRoutes", Summary: "Get return route summaries", Params: []rpc.ParamMeta{{Name: "uuid", Type: "string", Required: true}}, Returns: "ReturnRouteSummary[]"})
 	RegisterWithGroupAndMeta("listReturnRouteLogs", rpc.RoleAdmin, adminListReturnRouteLogs, &rpc.MethodMeta{Name: "admin:listReturnRouteLogs", Summary: "List recent return route probe logs", Returns: "{ logs: ReturnRouteLog[], total: number }"})
 	RegisterWithGroupAndMeta("runAllReturnRoutes", rpc.RoleAdmin, adminRunAllReturnRoutes, &rpc.MethodMeta{Name: "admin:runAllReturnRoutes", Summary: "Run return route probes on all online agents", Returns: "{ accepted: number }"})
-	RegisterWithGroupAndMeta("clearReturnRouteLogs", rpc.RoleAdmin, adminClearReturnRouteLogs, &rpc.MethodMeta{Name: "admin:clearReturnRouteLogs", Summary: "Clear return route probe logs and summaries", Params: []rpc.ParamMeta{{Name: "confirm", Type: "boolean", Required: true}}, Returns: "{ cleared: boolean }"})
+	RegisterWithGroupAndMeta("clearReturnRouteLogs", rpc.RoleAdmin, adminClearReturnRouteLogs, &rpc.MethodMeta{Name: "admin:clearReturnRouteLogs", Summary: "Clear return route probe logs", Params: []rpc.ParamMeta{{Name: "confirm", Type: "boolean", Required: true}}, Returns: "{ cleared: boolean }"})
+	RegisterWithGroupAndMeta("clearReturnRouteResults", rpc.RoleAdmin, adminClearReturnRouteResults, &rpc.MethodMeta{Name: "admin:clearReturnRouteResults", Summary: "Clear visible return route results while retaining logs", Params: []rpc.ParamMeta{{Name: "confirm", Type: "boolean", Required: true}}, Returns: "{ cleared: boolean }"})
 }
 
 func adminListReturnRouteLogs(_ context.Context, req *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {
@@ -54,6 +55,19 @@ func adminClearReturnRouteLogs(_ context.Context, req *rpc.JsonRpcRequest) (any,
 		return nil, rpc.MakeError(rpc.InvalidParams, "confirm must be true", nil)
 	}
 	if err := returnroutes.ClearLogs(); err != nil {
+		return nil, rpc.MakeError(rpc.InternalError, err.Error(), nil)
+	}
+	return map[string]any{"cleared": true}, nil
+}
+
+func adminClearReturnRouteResults(_ context.Context, req *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {
+	var p struct {
+		Confirm bool `json:"confirm"`
+	}
+	if err := req.BindParams(&p); err != nil || !p.Confirm {
+		return nil, rpc.MakeError(rpc.InvalidParams, "confirm must be true", nil)
+	}
+	if err := returnroutes.ClearResults(); err != nil {
 		return nil, rpc.MakeError(rpc.InternalError, err.Error(), nil)
 	}
 	return map[string]any{"cleared": true}, nil
