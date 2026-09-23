@@ -10,6 +10,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -419,6 +420,15 @@ func processV2Event(conn *ws.SafeConn, method string, params interface{}, eventI
 		}
 		currentRevision, currentConfig := runtimeconfig.Current()
 		sendManagedConfigReport(conn, v2.ConfigReportParams{Revision: currentRevision, Status: "applied", Config: currentConfig})
+		return true
+	case v2.MethodAgentUpdate:
+		go func() {
+			if err := update.CheckAndUpdate(); err == update.ErrRestartRequired {
+				os.Exit(42)
+			} else if err != nil {
+				log.Printf("forced agent update failed: %v", err)
+			}
+		}()
 		return true
 	case v2.MethodAgentPing:
 		var p struct {

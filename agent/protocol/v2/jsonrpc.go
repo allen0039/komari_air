@@ -16,6 +16,7 @@ const (
 	MethodAgentPull         = "agent.pull"
 	MethodAgentConfigSet    = "agent.config.set"
 	MethodAgentConfigReport = "agent.config.report"
+	MethodAgentUpdate       = "agent.update"
 	MethodAgentTraceResult  = "agent.traceResult"
 )
 

@@ -9,14 +9,30 @@ import (
 	"github.com/komari-monitor/komari/database/returnroutes"
 	"github.com/komari-monitor/komari/internal/metricstore"
 	"github.com/komari-monitor/komari/pkg/rpc"
+	v2 "github.com/komari-monitor/komari/protocol/v2"
 	agent_runtime "github.com/komari-monitor/komari/web/agent"
 )
+
+func adminForceUpdateAgents(_ context.Context, _ *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {
+	all, err := clients.GetAllClientBasicInfo()
+	if err != nil {
+		return nil, rpc.MakeError(rpc.InternalError, err.Error(), nil)
+	}
+	accepted := 0
+	for _, client := range all {
+		if agent_runtime.HasV2Capability(client.UUID, "config:v1") && agent_runtime.DispatchV2Event(client.UUID, v2.MethodAgentUpdate, nil) {
+			accepted++
+		}
+	}
+	return map[string]any{"accepted": accepted}, nil
+}
 
 // admin.client.go
 // client 资源的 RPC2 方法（admin 命名空间）。承载原 web/api/admin/client.go 的业务逻辑，
 // 包含审计日志与运行时副作用。传统 REST handler 经 CallFromGin 转调这些方法。
 
 func init() {
+	RegisterWithGroupAndMeta("forceUpdateAgents", rpc.RoleAdmin, adminForceUpdateAgents, &rpc.MethodMeta{Name: "admin:forceUpdateAgents", Summary: "Force online agents to check for updates", Returns: "{ accepted: number }"})
 	RegisterWithGroupAndMeta("addClient", rpc.RoleAdmin, adminAddClient, &rpc.MethodMeta{
 		Name:    "admin:addClient",
 		Summary: "Create a new client",

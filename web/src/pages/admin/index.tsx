@@ -1036,6 +1036,7 @@ const Header = ({
   const { t } = useTranslation();
   const { refresh } = useNodeDetails();
   const [loading, setLoading] = useState(false);
+  const [updatingAgents, setUpdatingAgents] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const handleAddNode = async (name: string | undefined) => {
@@ -1059,6 +1060,16 @@ const Header = ({
       setDialogOpen(false);
     }
   };
+  const forceUpdateAgents = async () => {
+    setUpdatingAgents(true);
+    try {
+      const response = await fetch("/api/rpc2", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method: "admin:forceUpdateAgents", params: {} }) });
+      const payload = await response.json();
+      if (payload.error) throw new Error(payload.error.message || "update failed");
+      toast.success(t("admin.nodeTable.agentUpdateStarted", { count: payload.result?.accepted ?? 0 }));
+    } catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
+    finally { setUpdatingAgents(false); }
+  };
   return (
     <Flex justify="between" align="center" gap="4" wrap="wrap">
       <Flex gap="2" align="center">
@@ -1070,6 +1081,9 @@ const Header = ({
         )}
       </Flex>
       <Flex gap="2">
+        <Button variant="soft" onClick={() => void forceUpdateAgents()} disabled={updatingAgents}>
+          <Download size={16} />{updatingAgents ? t("admin.nodeTable.agentUpdating") : t("admin.nodeTable.agentUpdateAll")}
+        </Button>
         <TextField.Root
           placeholder={t("admin.nodeTable.searchByName")}
           value={searchTerm}
