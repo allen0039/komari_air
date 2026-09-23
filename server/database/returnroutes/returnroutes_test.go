@@ -21,6 +21,7 @@ func TestClassifyUsesPathEvidence(t *testing.T) {
 		{"legend sg first backbone 163", Target{Carrier: "unicom"}, []v2.TraceHop{{ASN: "216211"}, {ASN: "4134"}, {ASN: "4837"}}, "163"},
 		{"bage unicom 4837", Target{Carrier: "unicom"}, []v2.TraceHop{{ASN: "26042"}, {ASN: "6461"}, {ASN: "4837"}}, "4837"},
 		{"novix mobile cmi", Target{Carrier: "mobile"}, []v2.TraceHop{{ASN: "9808"}}, "CMI"},
+		{"novix zhejiang mobile cmi", Target{Carrier: "mobile"}, []v2.TraceHop{{ASN: "56041"}}, "CMI"},
 		{"unrecognized 4808", Target{Carrier: "unicom"}, []v2.TraceHop{{ASN: "4808"}}, "Unknown"},
 		{"unknown", Target{Carrier: "telecom"}, []v2.TraceHop{{IP: "192.0.2.1"}}, "Unknown"},
 	}

@@ -60,7 +60,7 @@ func classify(target Target, hops []v2.TraceHop) (string, string, string) {
 			return "163", "high", "AS 路径 " + pathText
 		case "4837":
 			return "4837", "high", "AS 路径 " + pathText
-		case "58453", "9808":
+		case "56040", "56041", "58453", "9808":
 			return "CMI", "high", "AS 路径 " + pathText
 		}
 	}
@@ -126,7 +126,7 @@ func routeEntry(routeType string, hops []v2.TraceHop) (string, string) {
 		"9929":    {"10099", "9929"},
 		"10099":   {"10099"},
 		"CMIN2":   {"58807"},
-		"CMI":     {"58453", "9808"},
+		"CMI":     {"56040", "56041", "58453", "9808"},
 		"163":     {"4134", "58466"},
 		"4837":    {"4837"},
 	}
