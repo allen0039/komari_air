@@ -59,7 +59,7 @@ npm run dev
 
 ## 一键部署
 
-适用于常见 Linux 服务器。脚本会自动安装缺失的 Git、Docker 和 Docker Compose，然后拉取源码、构建并启动服务：
+适用于常见 Linux 服务器。脚本会自动安装缺失的 Git、Docker 和 Docker Compose，然后拉取 Docker Hub 上的预构建镜像并启动服务：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/allen0039/komari_air/main/scripts/deploy.sh | sudo bash
@@ -71,7 +71,9 @@ curl -fsSL https://raw.githubusercontent.com/allen0039/komari_air/main/scripts/d
 curl -fsSL https://raw.githubusercontent.com/allen0039/komari_air/main/scripts/deploy.sh | bash
 ```
 
-脚本支持 Debian、Ubuntu、RHEL/CentOS/Fedora、Alpine、Arch 和 openSUSE 等常见发行版。它会自动将仓库克隆到 `/opt/komari_air`，或在已部署时快进拉取 `main` 分支，然后构建镜像、启动容器并等待健康检查通过。重复执行同一条命令即可更新。数据库保存在 Docker 命名卷 `komari_air_data` 中，更新和普通停止不会删除数据。
+脚本支持 Debian、Ubuntu、RHEL/CentOS/Fedora、Alpine、Arch 和 openSUSE 等常见发行版。它会自动将部署配置仓库克隆到 `/opt/komari_air`，拉取 `docker.io/allen0039/komari_air:latest`，启动容器并等待健康检查通过。重复执行同一条命令即可更新。数据库保存在部署目录的 `data` 子目录中，更新和普通停止不会删除数据。
+
+镜像也会同步发布到 `ghcr.io/allen0039/komari_air:latest`。GitHub Actions 发布工作流需要配置仓库 Secrets：`DOCKERHUB_USERNAME` 和 `DOCKERHUB_TOKEN`；其中 Docker Hub Token 建议使用仅有推送权限的 Access Token。
 
 指定端口或时区：
 

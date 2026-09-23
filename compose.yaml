@@ -1,12 +1,6 @@
 services:
   komari:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        KOMARI_VERSION: ${KOMARI_VERSION:-0.1.0}
-        KOMARI_COMMIT: ${KOMARI_COMMIT:-unknown}
-    image: ${KOMARI_IMAGE:-komari-air:local}
+    image: ${KOMARI_IMAGE:-docker.io/allen0039/komari_air:latest}
     restart: unless-stopped
     environment:
       GIN_MODE: release
