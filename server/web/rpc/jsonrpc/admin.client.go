@@ -26,14 +26,41 @@ func adminGetAgentUpgradeStatus(_ context.Context, _ *rpc.JsonRpcRequest) (any, 
 	return agent_runtime.GetUpgradeStatusSnapshot(), nil
 }
 
-func adminForceUpdateAgents(_ context.Context, _ *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {
-	targetVersion, err := agentdist.Version()
-	if err != nil {
-		return nil, rpc.MakeError(rpc.InternalError, "panel-managed agent build is unavailable", err.Error())
+func adminForceUpdateAgents(_ context.Context, req *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {
+	var params struct {
+		UUIDs []string `json:"uuids"`
+	}
+	// Empty UUIDs retains the existing all-node behavior; the UI sends selected
+	// UUIDs for a safe one-node canary rollout.
+	// Bind errors are treated as invalid input rather than silently upgrading all.
+	if req != nil {
+		if err := req.BindParams(&params); err != nil {
+			return nil, rpc.MakeError(rpc.InvalidParams, "invalid uuids", nil)
+		}
 	}
 	all, err := clients.GetAllClientBasicInfo()
 	if err != nil {
 		return nil, rpc.MakeError(rpc.InternalError, err.Error(), nil)
+	}
+	if len(params.UUIDs) > 0 {
+		selected := make(map[string]bool, len(params.UUIDs))
+		for _, uuid := range params.UUIDs {
+			selected[uuid] = true
+		}
+		filtered := all[:0]
+		for _, client := range all {
+			if selected[client.UUID] {
+				filtered = append(filtered, client)
+			}
+		}
+		all = filtered
+		if len(all) == 0 {
+			return nil, rpc.MakeError(rpc.InvalidParams, "no matching clients", nil)
+		}
+	}
+	targetVersion, err := agentdist.VersionForIP(all[0].IPv4)
+	if err != nil {
+		return nil, rpc.MakeError(rpc.InternalError, "panel-managed agent build is unavailable", err.Error())
 	}
 	agentUpgradeQueueMu.Lock()
 	if agentUpgradeQueueRunning {
@@ -65,7 +92,15 @@ func adminForceUpdateAgents(_ context.Context, _ *rpc.JsonRpcRequest) (any, *rpc
 				end = len(all)
 			}
 			for _, client := range all[i:end] {
-				if client.Version == targetVersion {
+				clientTargetVersion, versionErr := agentdist.VersionForIP(client.IPv4)
+				if versionErr != nil {
+					agent_runtime.SetUpgradeStatus(client.UUID, agent_runtime.UpgradeStateFailed, versionErr.Error(), client.Version)
+					continue
+				}
+				if clientTargetVersion != targetVersion && len(params.UUIDs) > 0 {
+					targetVersion = clientTargetVersion
+				}
+				if client.Version == clientTargetVersion {
 					agent_runtime.SetUpgradeStatus(client.UUID, agent_runtime.UpgradeStateSucceeded, "已是目标版本", client.Version)
 					continue
 				}

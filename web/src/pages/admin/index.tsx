@@ -1078,7 +1078,7 @@ const Header = ({
 	setUpgradeConfirmOpen(false);
     setUpdatingAgents(true);
     try {
-      const response = await fetch("/api/rpc2", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method: "admin:forceUpdateAgents", params: {} }) });
+      const response = await fetch("/api/rpc2", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method: "admin:forceUpdateAgents", params: { uuids: selectedNodes } }) });
       const payload = await response.json();
       if (payload.error) throw new Error(payload.error.message || "update failed");
       toast.success(t("admin.nodeTable.agentUpdateStarted", { count: payload.result?.queued ?? 0 }));
@@ -1127,9 +1127,9 @@ const Header = ({
         </Button>
 		<Dialog.Root open={upgradeConfirmOpen} onOpenChange={setUpgradeConfirmOpen}>
 			<Dialog.Content style={{ maxWidth: 520 }}>
-				<Dialog.Title>确认升级全部 Agent？</Dialog.Title>
+				<Dialog.Title>确认升级{selectedNodes.length > 0 ? `选中的 ${selectedNodes.length} 台 Agent` : "全部 Agent"}？</Dialog.Title>
 				<Dialog.Description>
-					系统会向全部已登记节点分批发送升级指令。在线节点可能短暂离线并自动重启；离线或不支持的节点会标记为失败。
+					系统会向{selectedNodes.length > 0 ? "选中的节点" : "全部已登记节点"}分批发送升级指令。在线节点可能短暂离线并自动重启；离线或不支持的节点会标记为失败。
 				</Dialog.Description>
 				<Flex justify="end" gap="2" mt="4">
 					<Button variant="soft" color="gray" onClick={() => setUpgradeConfirmOpen(false)}>取消</Button>

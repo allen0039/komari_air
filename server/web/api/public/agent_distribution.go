@@ -22,7 +22,7 @@ func ServeAgentInstallPS1(c *gin.Context) {
 }
 
 func AgentVersion(c *gin.Context) {
-	version, err := agentdist.Version()
+	version, err := agentdist.VersionForIP(c.ClientIP())
 	if err != nil {
 		c.String(http.StatusNotFound, "agent build unavailable")
 		return
@@ -49,7 +49,7 @@ func DownloadAgent(c *gin.Context) {
 		c.String(http.StatusNotFound, "unsupported architecture")
 		return
 	}
-	full := agentdist.Path(goos, goarch)
+	full := agentdist.PathForIP(c.ClientIP(), goos, goarch)
 	if _, err := os.Stat(full); err != nil {
 		c.String(http.StatusNotFound, "agent build unavailable")
 		return

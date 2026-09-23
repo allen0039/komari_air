@@ -79,6 +79,7 @@ jobs:
           build-args: |
             KOMARI_VERSION=${{ needs.prepare.outputs.version }}
             AGENT_VERSION=${{ needs.prepare.outputs.agent_version }}
+            AGENT_CANARY_VERSION=0.1.11
             KOMARI_COMMIT=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.arch }}
           cache-to: type=gha,scope=${{ matrix.arch }},mode=max

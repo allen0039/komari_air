@@ -12,12 +12,16 @@ FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS agent-builder
 
 WORKDIR /src/agent
 ARG AGENT_VERSION
+ARG AGENT_CANARY_VERSION
 RUN test -n "$AGENT_VERSION" \
+    && test -n "$AGENT_CANARY_VERSION" \
     && apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/* \
-    && git clone --depth 1 --branch "v${AGENT_VERSION}" https://github.com/allen0039/komari_agent.git /src/agent
+    && git clone --depth 1 --branch "v${AGENT_VERSION}" https://github.com/allen0039/komari_agent.git /src/agent \
+    && git clone --depth 1 --branch "v${AGENT_CANARY_VERSION}" https://github.com/allen0039/komari_agent.git /src/agent-canary
 RUN go mod download
+RUN cd /src/agent-canary && go mod download
 
 RUN set -eux; \
     mkdir -p /out; \
@@ -31,6 +35,19 @@ RUN set -eux; \
         -o "/out/komari-agent-$os-$arch$ext" .; \
     done; \
     cp install.sh install.ps1 /out/
+
+RUN set -eux; \
+    mkdir -p /out/canary; \
+    VERSION="${AGENT_CANARY_VERSION}"; \
+    printf '%s' "$VERSION" > /out/canary/version; \
+    cd /src/agent-canary; \
+    for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do \
+      os="${target%/*}"; arch="${target#*/}"; ext=""; \
+      if [ "$os" = "windows" ]; then ext=".exe"; fi; \
+      CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath \
+        -ldflags="-s -w -X github.com/allen0039/komari_agent/update.CurrentVersion=$VERSION" \
+        -o "/out/canary/komari-agent-$os-$arch$ext" .; \
+    done
 
 FROM golang:1.25-bookworm AS server-builder
 

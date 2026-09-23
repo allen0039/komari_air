@@ -2,6 +2,7 @@ package agentdist
 
 import (
 	"fmt"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,7 +20,11 @@ func Dir() string {
 
 // Version returns the version embedded in the panel-managed Agent bundle.
 func Version() (string, error) {
-	data, err := os.ReadFile(filepath.Join(Dir(), "version"))
+	return versionAt(Dir())
+}
+
+func versionAt(dir string) (string, error) {
+	data, err := os.ReadFile(filepath.Join(dir, "version"))
 	if err != nil {
 		return "", err
 	}
@@ -30,11 +35,45 @@ func Version() (string, error) {
 	return version, nil
 }
 
+// CanaryForIP reports whether this exact client IP is opted into the Agent
+// canary. The public version and binary endpoints use the same selection.
+func CanaryForIP(ip string) bool {
+	clientIP, err := netip.ParseAddr(strings.TrimSpace(ip))
+	if err != nil {
+		return false
+	}
+	for _, entry := range strings.Split(os.Getenv("KOMARI_AGENT_CANARY_IPS"), ",") {
+		candidate, err := netip.ParseAddr(strings.TrimSpace(entry))
+		if err == nil && candidate == clientIP {
+			return true
+		}
+	}
+	return false
+}
+
+func VersionForIP(ip string) (string, error) {
+	if CanaryForIP(ip) {
+		return versionAt(filepath.Join(Dir(), "canary"))
+	}
+	return Version()
+}
+
 // Path returns the path to one platform-specific Agent binary.
 func Path(goos, goarch string) string {
+	return pathAt(Dir(), goos, goarch)
+}
+
+func PathForIP(ip, goos, goarch string) string {
+	if CanaryForIP(ip) {
+		return pathAt(filepath.Join(Dir(), "canary"), goos, goarch)
+	}
+	return Path(goos, goarch)
+}
+
+func pathAt(dir, goos, goarch string) string {
 	name := "komari-agent-" + goos + "-" + goarch
 	if goos == "windows" {
 		name += ".exe"
 	}
-	return filepath.Join(Dir(), name)
+	return filepath.Join(dir, name)
 }
