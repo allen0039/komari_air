@@ -33,8 +33,8 @@ type ProbeLog = {
 };
 
 type LogResponse = { logs: ProbeLog[]; total: number };
-type ServerRoute = { uuid: string; name: string; return_routes?: Array<{ carrier: string; route_type: string; stale: boolean; tested_at: string }> };
-type SettingsInfo = { schedule_time: string; storage_bytes: number; log_count: number };
+type ServerRoute = { uuid: string; name: string; weight?: number; return_routes?: Array<{ carrier: string; route_type: string; stale: boolean; tested_at: string }> };
+type SettingsInfo = { schedule_time: string; storage_bytes: number; log_count: number; retention_days: number };
 
 const formatBytes = (value: number) => {
   if (value < 1024) return `${value} B`;
@@ -59,6 +59,8 @@ export default function ReturnRoutes() {
   const [schedule, setSchedule] = useState("04:20");
   const [storageBytes, setStorageBytes] = useState(0);
   const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [retentionDays, setRetentionDays] = useState(2);
+  const [retentionSaving, setRetentionSaving] = useState(false);
   const [servers, setServers] = useState<ServerRoute[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
   const pageSize = 20;
@@ -76,12 +78,13 @@ export default function ReturnRoutes() {
   }, [call]);
 
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => { fetch("/api/admin/client/list").then((r) => r.json()).then((value) => setServers(Array.isArray(value) ? value : [])).catch(() => undefined); }, []);
+  useEffect(() => { fetch("/api/admin/client/list").then((r) => r.json()).then((value) => setServers((Array.isArray(value) ? value : []).sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0)))).catch(() => undefined); }, []);
 
   useEffect(() => {
     void call<undefined, SettingsInfo>("admin:getReturnRouteSettings").then((value) => {
       setSchedule(value.schedule_time || "04:20");
       setStorageBytes(value.storage_bytes || 0);
+      setRetentionDays(value.retention_days || 2);
     }).catch(() => undefined);
   }, [call]);
 
@@ -93,6 +96,16 @@ export default function ReturnRoutes() {
       toast.success(t("returnRoute.scheduleSaved"));
     } catch (err) { toast.error(err instanceof Error ? err.message : String(err)); }
     finally { setScheduleSaving(false); }
+  };
+
+  const saveRetention = async () => {
+    setRetentionSaving(true);
+    try {
+      const value = await call<{ days: number }, { days: number }>("admin:setReturnRouteRetention", { days: retentionDays });
+      setRetentionDays(value.days);
+      toast.success(t("returnRoute.retentionSaved"));
+    } catch (err) { toast.error(err instanceof Error ? err.message : String(err)); }
+    finally { setRetentionSaving(false); }
   };
 
   const loadLogs = useCallback(async () => {
@@ -188,6 +201,11 @@ export default function ReturnRoutes() {
             <TextField.Root type="time" value={schedule} onChange={(event) => setSchedule(event.target.value)} />
           </label>
           <Button onClick={() => void saveSchedule()} disabled={scheduleSaving}>{t("returnRoute.saveSchedule")}</Button>
+          <label>
+            <Text size="2" as="div" mb="1">{t("returnRoute.retention")}</Text>
+            <TextField.Root type="number" min="1" max="365" value={retentionDays} onChange={(event) => setRetentionDays(Math.max(1, Math.min(365, Number(event.target.value) || 1)))} />
+          </label>
+          <Button onClick={() => void saveRetention()} disabled={retentionSaving}>{t("returnRoute.saveRetention")}</Button>
           <Text size="2" color="gray">{t("returnRoute.storage", { size: formatBytes(storageBytes) })}</Text>
         </Flex>
       </Card>
@@ -210,7 +228,7 @@ export default function ReturnRoutes() {
           <Flex align="center" justify="between" gap="3" wrap="wrap">
             <div>
               <Text size="4" weight="bold" as="div">{t("returnRoute.logs")}</Text>
-              <Text size="2" color="gray">{t("returnRoute.logCount", { count: total })}</Text>
+              <Text size="2" color="gray">{t("returnRoute.logCount", { count: total, days: retentionDays })}</Text>
             </div>
             <Flex gap="2" wrap="wrap">
               <Button variant="soft" onClick={() => void loadLogs()} disabled={logsLoading}><RefreshCw size={16} />{t("returnRoute.refresh")}</Button>

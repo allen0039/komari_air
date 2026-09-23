@@ -319,9 +319,10 @@ type ProbeLog struct {
 }
 
 type SettingsInfo struct {
-	ScheduleTime string `json:"schedule_time"`
-	StorageBytes int64  `json:"storage_bytes"`
-	LogCount     int64  `json:"log_count"`
+	ScheduleTime  string `json:"schedule_time"`
+	StorageBytes  int64  `json:"storage_bytes"`
+	LogCount      int64  `json:"log_count"`
+	RetentionDays int    `json:"retention_days"`
 }
 
 func Settings() (SettingsInfo, error) {
@@ -334,7 +335,7 @@ func Settings() (SettingsInfo, error) {
 	if err := db.Model(&models.ReturnRouteSample{}).Where("hidden = ?", false).Select("COALESCE(SUM(LENGTH(task_id)+LENGTH(target_host)+LENGTH(route_type)+LENGTH(reason)+LENGTH(hops_json)), 0)").Scan(&bytes).Error; err != nil {
 		return SettingsInfo{}, err
 	}
-	return SettingsInfo{ScheduleTime: ScheduleTime(), StorageBytes: bytes, LogCount: count}, nil
+	return SettingsInfo{ScheduleTime: ScheduleTime(), StorageBytes: bytes, LogCount: count, RetentionDays: RetentionDays()}, nil
 }
 
 func ListLogs(limit, offset int) ([]ProbeLog, int64, error) {
@@ -386,7 +387,7 @@ func clearResults(db *gorm.DB) error {
 }
 
 func CleanupSamples() error {
-	return dbcore.GetDBInstance().Where("tested_at < ?", time.Now().UTC().Add(-7*24*time.Hour)).Delete(&models.ReturnRouteSample{}).Error
+	return dbcore.GetDBInstance().Where("tested_at < ?", time.Now().UTC().Add(-time.Duration(RetentionDays())*24*time.Hour)).Delete(&models.ReturnRouteSample{}).Error
 }
 
 func hasPrefix(ip net.IP, prefix string) bool {

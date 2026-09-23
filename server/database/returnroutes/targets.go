@@ -91,6 +91,24 @@ func SaveScheduleTime(value string) error {
 	return scheduler.AddFunc("return-routes:daily", cronForTime(value), func() { RunScheduled() })
 }
 
+func RetentionDays() int {
+	if !config.Ready() {
+		return 2
+	}
+	value, err := config.GetAs[int]("return_route_retention_days", 2)
+	if err != nil || value < 1 || value > 365 {
+		return 2
+	}
+	return value
+}
+
+func SaveRetentionDays(value int) error {
+	if value < 1 || value > 365 {
+		return fmt.Errorf("retention days must be between 1 and 365")
+	}
+	return config.Set("return_route_retention_days", value)
+}
+
 func ReloadSchedule() error {
 	return scheduler.AddFunc("return-routes:daily", cronForTime(ScheduleTime()), func() { RunScheduled() })
 }
