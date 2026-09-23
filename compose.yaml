@@ -15,11 +15,8 @@ services:
     ports:
       - "${KOMARI_PORT:-25774}:25774"
     volumes:
-      - komari-data:/app/data
+      # Keep data in the deployment directory for lossless in-place upgrades from official Komari.
+      - ./data:/app/data
     security_opt:
       - no-new-privileges:true
     stop_grace_period: 30s
-
-volumes:
-  komari-data:
-    name: ${KOMARI_DATA_VOLUME:-komari_air_data}
