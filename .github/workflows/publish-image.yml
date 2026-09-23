@@ -55,7 +55,9 @@ jobs:
         with:
           context: .
           file: Dockerfile
-          platforms: linux/amd64,linux/arm64
+          # The server uses CGO/SQLite. Build the deployment target natively
+          # on GitHub's amd64 runner instead of hanging in ARM64 emulation.
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
