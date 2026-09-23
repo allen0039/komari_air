@@ -189,7 +189,7 @@ func registerScheduledWork() {
 	if err := scheduler.AddFunc("notifier:expire", "0 0 9 * * *", notifier.CheckExpireScheduledWork); err != nil {
 		logger.ErrorArgs("server", "Failed to add expire notification task:", err)
 	}
-	if err := scheduler.AddFunc("return-routes:daily", "0 20 4 * * *", returnroutes.RunScheduled); err != nil {
+	if err := returnroutes.ReloadSchedule(); err != nil {
 		logger.ErrorArgs("server", "Failed to add return route scheduled task:", err)
 	}
 }

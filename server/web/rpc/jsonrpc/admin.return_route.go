@@ -15,6 +15,8 @@ import (
 func init() {
 	RegisterWithGroupAndMeta("listReturnRouteTargets", rpc.RoleAdmin, adminListReturnRouteTargets, &rpc.MethodMeta{Name: "admin:listReturnRouteTargets", Summary: "List configured return route targets", Returns: "ReturnRouteTarget[]"})
 	RegisterWithGroupAndMeta("setReturnRouteEnabled", rpc.RoleAdmin, adminSetReturnRouteEnabled, &rpc.MethodMeta{Name: "admin:setReturnRouteEnabled", Summary: "Enable or disable return route probes", Params: []rpc.ParamMeta{{Name: "enabled", Type: "boolean", Required: true}}, Returns: "{ enabled: boolean }"})
+	RegisterWithGroupAndMeta("setReturnRouteSchedule", rpc.RoleAdmin, adminSetReturnRouteSchedule, &rpc.MethodMeta{Name: "admin:setReturnRouteSchedule", Summary: "Set daily return route probe time", Params: []rpc.ParamMeta{{Name: "time", Type: "string", Required: true}}, Returns: "{ time: string }"})
+	RegisterWithGroupAndMeta("getReturnRouteSettings", rpc.RoleAdmin, adminGetReturnRouteSettings, &rpc.MethodMeta{Name: "admin:getReturnRouteSettings", Summary: "Get return route schedule and log usage", Returns: "ReturnRouteSettings"})
 	RegisterWithGroupAndMeta("saveReturnRouteTargets", rpc.RoleAdmin, adminSaveReturnRouteTargets, &rpc.MethodMeta{Name: "admin:saveReturnRouteTargets", Summary: "Save three return route targets", Params: []rpc.ParamMeta{{Name: "targets", Type: "ReturnRouteTarget[]", Required: true}}, Returns: "ReturnRouteTarget[]"})
 	RegisterWithGroupAndMeta("runReturnRoutes", rpc.RoleAdmin, adminRunReturnRoutes, &rpc.MethodMeta{Name: "admin:runReturnRoutes", Summary: "Run all configured return route targets on a client", Params: []rpc.ParamMeta{{Name: "uuid", Type: "string", Required: true}}, Returns: "{ accepted: number }"})
 	RegisterWithGroupAndMeta("runReturnRoute", rpc.RoleAdmin, adminRunReturnRoute, &rpc.MethodMeta{Name: "admin:runReturnRoute", Summary: "Run a return route trace on a client", Params: []rpc.ParamMeta{{Name: "uuid", Type: "string", Required: true}, {Name: "target_id", Type: "string", Required: true}, {Name: "target_host", Type: "string", Required: true}}, Returns: "{ accepted: boolean, task_id: string }"})
@@ -89,6 +91,27 @@ func adminSetReturnRouteEnabled(_ context.Context, req *rpc.JsonRpcRequest) (any
 		return nil, rpc.MakeError(rpc.InternalError, err.Error(), nil)
 	}
 	return map[string]any{"enabled": *p.Enabled}, nil
+}
+
+func adminSetReturnRouteSchedule(_ context.Context, req *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {
+	var p struct {
+		Time string `json:"time"`
+	}
+	if err := req.BindParams(&p); err != nil {
+		return nil, rpc.MakeError(rpc.InvalidParams, err.Error(), nil)
+	}
+	if err := returnroutes.SaveScheduleTime(p.Time); err != nil {
+		return nil, rpc.MakeError(rpc.InvalidParams, err.Error(), nil)
+	}
+	return map[string]any{"time": returnroutes.ScheduleTime()}, nil
+}
+
+func adminGetReturnRouteSettings(_ context.Context, _ *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {
+	settings, err := returnroutes.Settings()
+	if err != nil {
+		return nil, rpc.MakeError(rpc.InternalError, err.Error(), nil)
+	}
+	return settings, nil
 }
 
 func adminSaveReturnRouteTargets(_ context.Context, req *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {

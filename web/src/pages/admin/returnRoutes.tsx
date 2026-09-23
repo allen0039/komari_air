@@ -33,6 +33,13 @@ type ProbeLog = {
 };
 
 type LogResponse = { logs: ProbeLog[]; total: number };
+type SettingsInfo = { schedule_time: string; storage_bytes: number; log_count: number };
+
+const formatBytes = (value: number) => {
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(2)} MB`;
+};
 
 export default function ReturnRoutes() {
   const { t } = useTranslation();
@@ -48,6 +55,9 @@ export default function ReturnRoutes() {
   const [clearing, setClearing] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [featureSaving, setFeatureSaving] = useState(false);
+  const [schedule, setSchedule] = useState("04:20");
+  const [storageBytes, setStorageBytes] = useState(0);
+  const [scheduleSaving, setScheduleSaving] = useState(false);
   const pageSize = 20;
 
   const load = useCallback(async () => {
@@ -63,6 +73,23 @@ export default function ReturnRoutes() {
   }, [call]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    void call<undefined, SettingsInfo>("admin:getReturnRouteSettings").then((value) => {
+      setSchedule(value.schedule_time || "04:20");
+      setStorageBytes(value.storage_bytes || 0);
+    }).catch(() => undefined);
+  }, [call]);
+
+  const saveSchedule = async () => {
+    setScheduleSaving(true);
+    try {
+      const value = await call<{ time: string }, { time: string }>("admin:setReturnRouteSchedule", { time: schedule });
+      setSchedule(value.time);
+      toast.success(t("returnRoute.scheduleSaved"));
+    } catch (err) { toast.error(err instanceof Error ? err.message : String(err)); }
+    finally { setScheduleSaving(false); }
+  };
 
   const loadLogs = useCallback(async () => {
     setLogsLoading(true);
@@ -142,6 +169,16 @@ export default function ReturnRoutes() {
             <Text size="2" color="gray">{t("returnRoute.featureSwitchDescription")}</Text>
           </div>
           <Switch checked={Boolean(targets?.[0]?.probe_enabled)} disabled={featureSaving} onCheckedChange={(enabled) => void setFeatureEnabled(enabled)} />
+        </Flex>
+      </Card>
+      <Card>
+        <Flex align="end" gap="3" wrap="wrap" p="2">
+          <label>
+            <Text size="2" as="div" mb="1">{t("returnRoute.schedule")}</Text>
+            <TextField.Root type="time" value={schedule} onChange={(event) => setSchedule(event.target.value)} />
+          </label>
+          <Button onClick={() => void saveSchedule()} disabled={scheduleSaving}>{t("returnRoute.saveSchedule")}</Button>
+          <Text size="2" color="gray">{t("returnRoute.storage", { size: formatBytes(storageBytes) })}</Text>
         </Flex>
       </Card>
       {targets?.map((target) => (

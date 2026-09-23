@@ -318,6 +318,25 @@ type ProbeLog struct {
 	TestedAt   time.Time `json:"tested_at"`
 }
 
+type SettingsInfo struct {
+	ScheduleTime string `json:"schedule_time"`
+	StorageBytes int64  `json:"storage_bytes"`
+	LogCount     int64  `json:"log_count"`
+}
+
+func Settings() (SettingsInfo, error) {
+	db := dbcore.GetDBInstance()
+	var count int64
+	if err := db.Model(&models.ReturnRouteSample{}).Where("hidden = ?", false).Count(&count).Error; err != nil {
+		return SettingsInfo{}, err
+	}
+	var bytes int64
+	if err := db.Model(&models.ReturnRouteSample{}).Where("hidden = ?", false).Select("COALESCE(SUM(LENGTH(task_id)+LENGTH(target_host)+LENGTH(route_type)+LENGTH(reason)+LENGTH(hops_json)), 0)").Scan(&bytes).Error; err != nil {
+		return SettingsInfo{}, err
+	}
+	return SettingsInfo{ScheduleTime: ScheduleTime(), StorageBytes: bytes, LogCount: count}, nil
+}
+
 func ListLogs(limit, offset int) ([]ProbeLog, int64, error) {
 	if limit < 1 || limit > 100 {
 		limit = 50

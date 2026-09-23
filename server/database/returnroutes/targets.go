@@ -5,8 +5,10 @@ import (
 	"net"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/komari-monitor/komari/internal/config"
+	"github.com/komari-monitor/komari/internal/scheduler"
 	"github.com/komari-monitor/komari/protocol/v2"
 )
 
@@ -62,6 +64,37 @@ func ProbeEnabled() bool {
 }
 
 func SaveProbeEnabled(enabled bool) error { return config.Set("return_route_enabled", enabled) }
+
+func ScheduleTime() string {
+	if !config.Ready() {
+		return "04:20"
+	}
+	value, err := config.GetAs[string]("return_route_schedule", "04:20")
+	if err != nil || !validScheduleTime(value) {
+		return "04:20"
+	}
+	return value
+}
+
+func SaveScheduleTime(value string) error {
+	if !validScheduleTime(value) {
+		return fmt.Errorf("invalid schedule time")
+	}
+	if err := config.Set("return_route_schedule", value); err != nil {
+		return err
+	}
+	return scheduler.AddFunc("return-routes:daily", cronForTime(value), func() { RunScheduled() })
+}
+
+func ReloadSchedule() error {
+	return scheduler.AddFunc("return-routes:daily", cronForTime(ScheduleTime()), func() { RunScheduled() })
+}
+
+func cronForTime(value string) string {
+	parsed, _ := time.Parse("15:04", value)
+	return fmt.Sprintf("0 %d %d * * *", parsed.Minute(), parsed.Hour())
+}
+func validScheduleTime(value string) bool { _, err := time.Parse("15:04", value); return err == nil }
 
 var hostnamePattern = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9.-]{0,251}[a-zA-Z0-9])?$`)
 
