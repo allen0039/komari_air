@@ -1,4 +1,3 @@
-import Loading from "@/components/loading";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button, Card, Dialog, Flex, Switch, Tabs, Text, TextField } from "@radix-ui/themes";
@@ -192,7 +191,6 @@ export default function ReturnRoutes() {
     catch (err) { toast.error(err instanceof Error ? err.message : String(err)); }
   };
 
-  if (loading) return <Loading />;
   if (error) return <div className="p-4">{error}</div>;
 
   return (
@@ -230,6 +228,7 @@ export default function ReturnRoutes() {
         <Tabs.Content value="targets" className="pt-3">
           <Card>
             <Table><TableHeader><TableRow><TableHead className="w-8"></TableHead><TableHead>{t("returnRoute.carrier")}</TableHead><TableHead>{t("returnRoute.region")}</TableHead><TableHead>{t("returnRoute.host")}</TableHead><TableHead>{t("returnRoute.enabled")}</TableHead></TableRow></TableHeader><TableBody>
+              {loading && <TableRow><TableCell colSpan={5}><Text size="2" color="gray">{t("returnRoute.loading")}</Text></TableCell></TableRow>}
               {targets?.map((target) => <TableRow key={target.id} draggable onDragStart={() => setDragId(target.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => moveTarget(target.id)}>
                 <TableCell><GripVertical size={15} className="cursor-grab text-gray-400" /></TableCell><TableCell>{t(`returnRoute.${target.carrier}`)}</TableCell><TableCell><TextField.Root size="1" value={target.region} onChange={(event) => update(target.id, { region: event.target.value })} /></TableCell><TableCell className="min-w-80"><TextField.Root size="1" value={target.host} onChange={(event) => update(target.id, { host: event.target.value })} /></TableCell><TableCell><Switch checked={target.enabled} onCheckedChange={(enabled) => update(target.id, { enabled })} /></TableCell>
               </TableRow>)}
