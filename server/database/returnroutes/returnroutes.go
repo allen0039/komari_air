@@ -324,13 +324,14 @@ func ListLogs(limit, offset int) ([]ProbeLog, int64, error) {
 	}
 	db := dbcore.GetDBInstance()
 	var total int64
-	if err := db.Model(&models.ReturnRouteSample{}).Count(&total).Error; err != nil {
+	if err := db.Model(&models.ReturnRouteSample{}).Where("hidden = ?", false).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 	var logs []ProbeLog
 	err := db.Table("return_route_samples AS samples").
 		Select("samples.id, samples.task_id, samples.client_id, clients.name AS client_name, samples.carrier, samples.target_host, samples.route_type, samples.confidence, samples.reason, samples.ok, samples.tested_at").
 		Joins("LEFT JOIN clients ON clients.uuid = samples.client_id").
+		Where("samples.hidden = ?", false).
 		Order("samples.tested_at DESC, samples.id DESC").Limit(limit).Offset(offset).Scan(&logs).Error
 	return logs, total, err
 }
@@ -342,7 +343,7 @@ func ClearLogs() error {
 }
 
 func clearLogs(db *gorm.DB) error {
-	return db.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&models.ReturnRouteSample{}).Error
+	return db.Model(&models.ReturnRouteSample{}).Where("hidden = ?", false).Update("hidden", true).Error
 }
 
 // ClearResults removes visible labels while retaining the historical probe log.

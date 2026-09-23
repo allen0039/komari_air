@@ -91,8 +91,11 @@ func TestClearResultsKeepsLogsButDiscardsOldEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	var logs int64
-	if err := db.Model(&models.ReturnRouteSample{}).Count(&logs).Error; err != nil || logs != 0 {
-		t.Fatalf("logs remain: count=%d err=%v", logs, err)
+	if err := db.Model(&models.ReturnRouteSample{}).Where("hidden = ?", false).Count(&logs).Error; err != nil || logs != 0 {
+		t.Fatalf("visible logs remain: count=%d err=%v", logs, err)
+	}
+	if err := db.Model(&models.ReturnRouteSample{}).Count(&logs).Error; err != nil || logs != 2 {
+		t.Fatalf("confirmation evidence was deleted: count=%d err=%v", logs, err)
 	}
 	if err := db.Model(&models.ReturnRouteResult{}).Count(&summaries).Error; err != nil || summaries != 1 {
 		t.Fatalf("clearing logs changed results: count=%d err=%v", summaries, err)
