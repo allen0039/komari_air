@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/komari-monitor/komari/database/clients"
 	"github.com/komari-monitor/komari/database/records"
 	"github.com/komari-monitor/komari/database/returnroutes"
+	"github.com/komari-monitor/komari/internal/agentdist"
 	"github.com/komari-monitor/komari/internal/metricstore"
 	"github.com/komari-monitor/komari/pkg/rpc"
 	v2 "github.com/komari-monitor/komari/protocol/v2"
@@ -17,22 +19,18 @@ import (
 
 var agentUpgradeQueueMu sync.Mutex
 var agentUpgradeQueueRunning bool
-var agentUpgradeStatus = struct {
-	sync.RWMutex
-	items map[string]string
-}{items: make(map[string]string)}
+
+const agentUpgradeConfirmationTimeout = 3 * time.Minute
 
 func adminGetAgentUpgradeStatus(_ context.Context, _ *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {
-	agentUpgradeStatus.RLock()
-	defer agentUpgradeStatus.RUnlock()
-	result := make(map[string]string, len(agentUpgradeStatus.items))
-	for k, v := range agentUpgradeStatus.items {
-		result[k] = v
-	}
-	return result, nil
+	return agent_runtime.GetUpgradeStatusSnapshot(), nil
 }
 
 func adminForceUpdateAgents(_ context.Context, _ *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {
+	targetVersion, err := agentdist.Version()
+	if err != nil {
+		return nil, rpc.MakeError(rpc.InternalError, "panel-managed agent build is unavailable", err.Error())
+	}
 	all, err := clients.GetAllClientBasicInfo()
 	if err != nil {
 		return nil, rpc.MakeError(rpc.InternalError, err.Error(), nil)
@@ -44,30 +42,84 @@ func adminForceUpdateAgents(_ context.Context, _ *rpc.JsonRpcRequest) (any, *rpc
 	}
 	agentUpgradeQueueRunning = true
 	agentUpgradeQueueMu.Unlock()
+	items := make([]agent_runtime.UpgradeStatus, 0, len(all))
+	for _, client := range all {
+		items = append(items, agent_runtime.UpgradeStatus{
+			UUID:           client.UUID,
+			Name:           client.Name,
+			CurrentVersion: client.Version,
+		})
+	}
+	agent_runtime.ResetUpgradeStatuses(targetVersion, items)
 	go func() {
-		defer func() { agentUpgradeQueueMu.Lock(); agentUpgradeQueueRunning = false; agentUpgradeQueueMu.Unlock() }()
+		defer func() {
+			agent_runtime.FinishUpgradeRun()
+			agentUpgradeQueueMu.Lock()
+			agentUpgradeQueueRunning = false
+			agentUpgradeQueueMu.Unlock()
+		}()
+		var confirmations sync.WaitGroup
 		for i := 0; i < len(all); i += 2 {
 			end := i + 2
 			if end > len(all) {
 				end = len(all)
 			}
 			for _, client := range all[i:end] {
-				agentUpgradeStatus.Lock()
-				agentUpgradeStatus.items[client.UUID] = "升级中"
-				agentUpgradeStatus.Unlock()
-				ok := agent_runtime.HasV2Capability(client.UUID, "config:v1") && agent_runtime.DispatchV2Event(client.UUID, v2.MethodAgentUpdate, nil)
-				agentUpgradeStatus.Lock()
-				if !ok {
-					agentUpgradeStatus.items[client.UUID] = "离线或不支持"
+				if client.Version == targetVersion {
+					agent_runtime.SetUpgradeStatus(client.UUID, agent_runtime.UpgradeStateSucceeded, "已是目标版本", client.Version)
+					continue
 				}
-				agentUpgradeStatus.Unlock()
+				ok := agent_runtime.HasV2Capability(client.UUID, "config:v1") && agent_runtime.DispatchV2Event(client.UUID, v2.MethodAgentUpdate, nil)
+				if !ok {
+					agent_runtime.SetUpgradeStatus(client.UUID, agent_runtime.UpgradeStateFailed, "节点离线或当前 Agent 不支持远程升级", client.Version)
+					continue
+				}
+				agent_runtime.SetUpgradeStatus(client.UUID, agent_runtime.UpgradeStateWaiting, "升级指令已发送，等待 Agent 返回结果", client.Version)
+				confirmations.Add(1)
+				go func(uuid string) {
+					defer confirmations.Done()
+					waitForAgentUpgrade(uuid, targetVersion)
+				}(client.UUID)
 			}
 			if end < len(all) {
 				time.Sleep(15 * time.Second)
 			}
 		}
+		confirmations.Wait()
 	}()
-	return map[string]any{"queued": len(all), "batch_size": 2, "interval_seconds": 15}, nil
+	return map[string]any{"queued": len(all), "batch_size": 2, "interval_seconds": 15, "target_version": targetVersion, "timeout_seconds": int(agentUpgradeConfirmationTimeout.Seconds())}, nil
+}
+
+func waitForAgentUpgrade(uuid, targetVersion string) {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	timer := time.NewTimer(agentUpgradeConfirmationTimeout)
+	defer timer.Stop()
+	for {
+		if agent_runtime.UpgradeStatusIsTerminal(uuid) {
+			return
+		}
+		client, err := clients.GetClientByUUID(uuid)
+		if err == nil && client.Version == targetVersion {
+			agent_runtime.SetUpgradeStatus(uuid, agent_runtime.UpgradeStateSucceeded, "Agent 已重新上线并上报目标版本", client.Version)
+			return
+		}
+		select {
+		case <-ticker.C:
+			continue
+		case <-timer.C:
+			currentVersion := ""
+			if err == nil {
+				currentVersion = client.Version
+			}
+			message := fmt.Sprintf("等待 %s 版本重新上线超时", targetVersion)
+			if currentVersion != "" {
+				message += fmt.Sprintf("，当前仍上报 %s", currentVersion)
+			}
+			agent_runtime.SetUpgradeStatus(uuid, agent_runtime.UpgradeStateTimeout, message, currentVersion)
+			return
+		}
+	}
 }
 
 // admin.client.go

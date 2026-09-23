@@ -8,32 +8,26 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/komari-monitor/komari/internal/agentdist"
 )
 
 var safeAgentPart = regexp.MustCompile(`^[a-z0-9_-]+$`)
 
-func agentDistDir() string {
-	if configured := strings.TrimSpace(os.Getenv("KOMARI_AGENT_DIST_DIR")); configured != "" {
-		return configured
-	}
-	return "/app/agent-dist"
-}
-
 func ServeAgentInstallSH(c *gin.Context) {
-	c.File(filepath.Join(agentDistDir(), "install.sh"))
+	c.File(filepath.Join(agentdist.Dir(), "install.sh"))
 }
 
 func ServeAgentInstallPS1(c *gin.Context) {
-	c.File(filepath.Join(agentDistDir(), "install.ps1"))
+	c.File(filepath.Join(agentdist.Dir(), "install.ps1"))
 }
 
 func AgentVersion(c *gin.Context) {
-	data, err := os.ReadFile(filepath.Join(agentDistDir(), "version"))
+	version, err := agentdist.Version()
 	if err != nil {
 		c.String(http.StatusNotFound, "agent build unavailable")
 		return
 	}
-	c.Data(http.StatusOK, "text/plain; charset=utf-8", data)
+	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(version))
 }
 
 func DownloadAgent(c *gin.Context) {
@@ -55,15 +49,11 @@ func DownloadAgent(c *gin.Context) {
 		c.String(http.StatusNotFound, "unsupported architecture")
 		return
 	}
-	name := "komari-agent-" + goos + "-" + goarch
-	if goos == "windows" {
-		name += ".exe"
-	}
-	full := filepath.Join(agentDistDir(), name)
+	full := agentdist.Path(goos, goarch)
 	if _, err := os.Stat(full); err != nil {
 		c.String(http.StatusNotFound, "agent build unavailable")
 		return
 	}
-	c.Header("Content-Disposition", `attachment; filename="`+name+`"`)
+	c.Header("Content-Disposition", `attachment; filename="`+filepath.Base(full)+`"`)
 	c.File(full)
 }

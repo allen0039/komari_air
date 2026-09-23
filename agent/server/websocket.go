@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -36,7 +37,7 @@ const (
 	v2SeenEventLimit = 4096
 )
 
-var v2Capabilities = []string{"ping", "message", "event", "config:v1", "trace:v1"}
+var v2Capabilities = []string{"ping", "message", "event", "config:v1", "trace:v1", "update-status:v1"}
 
 func EstablishWebSocketConnection() {
 	var conn *ws.SafeConn
@@ -280,6 +281,23 @@ func sendCurrentManagedConfigReport(conn *ws.SafeConn) {
 	sendManagedConfigReport(conn, v2.ConfigReportParams{Revision: rev, Status: "applied", Config: config})
 }
 
+func sendAgentUpdateResult(conn *ws.SafeConn, status string, err error) {
+	report := v2.UpdateResultParams{Status: status, Version: update.CurrentVersion}
+	if err != nil {
+		report.Error = err.Error()
+	}
+	payload := v2.NewNotification(v2.MethodAgentUpdateResult, report)
+	if conn != nil {
+		if writeErr := conn.WriteMessage(websocket.TextMessage, payload); writeErr != nil {
+			log.Printf("failed to report agent update status: %v", writeErr)
+		}
+		return
+	}
+	if _, postErr := postV2Request(v2.NewRequest(fmt.Sprintf("update-%d", time.Now().UnixNano()), v2.MethodAgentUpdateResult, report)); postErr != nil {
+		log.Printf("failed to report agent update status: %v", postErr)
+	}
+}
+
 func processV2ResponseEvents(resp *v2.Response) {
 	if resp == nil || resp.Result == nil {
 		return
@@ -423,10 +441,17 @@ func processV2Event(conn *ws.SafeConn, method string, params interface{}, eventI
 		return true
 	case v2.MethodAgentUpdate:
 		go func() {
-			if err := update.CheckAndUpdate(); err == update.ErrRestartRequired {
+			sendAgentUpdateResult(conn, "checking", nil)
+			err := update.CheckAndUpdate()
+			if errors.Is(err, update.ErrRestartRequired) {
+				sendAgentUpdateResult(conn, "installed", nil)
+				time.Sleep(250 * time.Millisecond)
 				os.Exit(42)
 			} else if err != nil {
+				sendAgentUpdateResult(conn, "failed", err)
 				log.Printf("forced agent update failed: %v", err)
+			} else {
+				sendAgentUpdateResult(conn, "up_to_date", nil)
 			}
 		}()
 		return true

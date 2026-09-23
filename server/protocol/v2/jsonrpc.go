@@ -14,6 +14,7 @@ const (
 	MethodAgentConfigSet    = "agent.config.set"
 	MethodAgentConfigReport = "agent.config.report"
 	MethodAgentUpdate       = "agent.update"
+	MethodAgentUpdateResult = "agent.updateResult"
 	MethodAgentTraceResult  = "agent.traceResult"
 )
 
@@ -43,6 +44,12 @@ type RPCError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    any    `json:"data,omitempty"`
+}
+
+type UpdateResultParams struct {
+	Status  string `json:"status"`
+	Version string `json:"version,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 type ReportParams struct {

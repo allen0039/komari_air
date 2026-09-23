@@ -148,6 +148,13 @@ func handleV2RPC(uuid string, req v2.Request, allowWait bool) v2.Response {
 		}
 		syncManagedAgentConfig(uuid)
 		return v2.Success(req.ID, gin.H{"status": "success"})
+	case v2.MethodAgentUpdateResult:
+		var params v2.UpdateResultParams
+		if err := bindV2Params(req.Params, &params); err != nil {
+			return v2.Error(req.ID, -32602, "invalid update result params", err.Error())
+		}
+		agent_runtime.ApplyAgentUpdateResult(uuid, params.Status, params.Version, params.Error)
+		return v2.Success(req.ID, gin.H{"status": "success"})
 	case v2.MethodAgentPull:
 		var params v2.PullParams
 		if err := bindV2Params(req.Params, &params); err != nil {

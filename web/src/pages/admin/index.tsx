@@ -1031,12 +1031,26 @@ const Header = ({
   settings: any;
   settingsLoading: boolean;
 }) => {
+	type AgentUpgradeStatus = {
+		uuid: string;
+		name: string;
+		state: "queued" | "waiting" | "restarting" | "succeeded" | "failed" | "timeout";
+		message?: string;
+		current_version?: string;
+		target_version: string;
+	};
+	type AgentUpgradeSnapshot = {
+		running: boolean;
+		target_version: string;
+		items: Record<string, AgentUpgradeStatus>;
+	};
   const { t } = useTranslation();
   const { refresh } = useNodeDetails();
   const [loading, setLoading] = useState(false);
   const [updatingAgents, setUpdatingAgents] = useState(false);
+	const [upgradeConfirmOpen, setUpgradeConfirmOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const [upgradeStatuses, setUpgradeStatuses] = useState<Record<string, string>>({});
+	const [upgradeSnapshot, setUpgradeSnapshot] = useState<AgentUpgradeSnapshot>({ running: false, target_version: "", items: {} });
   const [dialogOpen, setDialogOpen] = useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const handleAddNode = async (name: string | undefined) => {
@@ -1061,12 +1075,14 @@ const Header = ({
     }
   };
   const forceUpdateAgents = async () => {
+	setUpgradeConfirmOpen(false);
     setUpdatingAgents(true);
     try {
       const response = await fetch("/api/rpc2", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method: "admin:forceUpdateAgents", params: {} }) });
       const payload = await response.json();
       if (payload.error) throw new Error(payload.error.message || "update failed");
       toast.success(t("admin.nodeTable.agentUpdateStarted", { count: payload.result?.queued ?? 0 }));
+		setUpgradeSnapshot({ running: true, target_version: payload.result?.target_version || "", items: {} });
       setUpgradeOpen(true);
     } catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
     finally { setUpdatingAgents(false); }
@@ -1077,13 +1093,24 @@ const Header = ({
       try {
         const response = await fetch("/api/rpc2", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method: "admin:getAgentUpgradeStatus", params: {} }) });
         const payload = await response.json();
-        if (!payload.error) setUpgradeStatuses(payload.result || {});
+		if (!payload.error) setUpgradeSnapshot(payload.result || { running: false, target_version: "", items: {} });
       } catch { /* next poll retries */ }
     };
     void poll();
     const timer = window.setInterval(poll, 2000);
     return () => window.clearInterval(timer);
   }, [upgradeOpen]);
+	const upgradeItems = Object.values(upgradeSnapshot.items);
+	const succeededCount = upgradeItems.filter((item) => item.state === "succeeded").length;
+	const failedCount = upgradeItems.filter((item) => item.state === "failed" || item.state === "timeout").length;
+	const stateLabel: Record<AgentUpgradeStatus["state"], string> = {
+		queued: "等待下发",
+		waiting: "升级中",
+		restarting: "等待重启确认",
+		succeeded: "升级成功",
+		failed: "升级失败",
+		timeout: "确认超时",
+	};
   return (
     <Flex justify="between" align="center" gap="4" wrap="wrap">
       <Flex gap="2" align="center">
@@ -1095,17 +1122,47 @@ const Header = ({
         )}
       </Flex>
       <Flex gap="2">
-        <Button variant="soft" onClick={() => void forceUpdateAgents()} disabled={updatingAgents}>
-          <Download size={16} />{updatingAgents ? t("admin.nodeTable.agentUpdating") : t("admin.nodeTable.agentUpdateAll")}
+		<Button variant="soft" onClick={() => upgradeSnapshot.running ? setUpgradeOpen(true) : setUpgradeConfirmOpen(true)} disabled={updatingAgents}>
+          <Download size={16} />{updatingAgents ? t("admin.nodeTable.agentUpdating") : upgradeSnapshot.running ? "查看升级进度" : t("admin.nodeTable.agentUpdateAll")}
         </Button>
+		<Dialog.Root open={upgradeConfirmOpen} onOpenChange={setUpgradeConfirmOpen}>
+			<Dialog.Content style={{ maxWidth: 520 }}>
+				<Dialog.Title>确认升级全部 Agent？</Dialog.Title>
+				<Dialog.Description>
+					系统会向全部已登记节点分批发送升级指令。在线节点可能短暂离线并自动重启；离线或不支持的节点会标记为失败。
+				</Dialog.Description>
+				<Flex justify="end" gap="2" mt="4">
+					<Button variant="soft" color="gray" onClick={() => setUpgradeConfirmOpen(false)}>取消</Button>
+					<Button color="red" onClick={() => void forceUpdateAgents()} disabled={updatingAgents}>确认开始升级</Button>
+				</Flex>
+			</Dialog.Content>
+		</Dialog.Root>
         <Dialog.Root open={upgradeOpen} onOpenChange={setUpgradeOpen}>
           <Dialog.Content style={{ maxWidth: 720 }}>
             <Dialog.Title>Agent 梯次升级</Dialog.Title>
-            <Dialog.Description>每批 2 台，间隔 15 秒；状态每 2 秒刷新，失败节点会明确标记。</Dialog.Description>
+			<Dialog.Description>
+				目标版本 {upgradeSnapshot.target_version || "读取中"}；每批 2 台，间隔 15 秒。每个节点最多等待 3 分钟确认，之后会明确标记为超时。
+			</Dialog.Description>
+			<Flex gap="3" mt="3" wrap="wrap">
+				<Text color={upgradeSnapshot.running ? "blue" : "gray"}>{upgradeSnapshot.running ? "任务进行中" : "任务已结束"}</Text>
+				<Text color="green">成功 {succeededCount}</Text>
+				<Text color={failedCount > 0 ? "red" : "gray"}>失败/超时 {failedCount}</Text>
+				<Text color="gray">总计 {upgradeItems.length}</Text>
+			</Flex>
             <Flex direction="column" gap="2" mt="3" style={{ maxHeight: 420, overflow: "auto" }}>
-              {Object.entries(upgradeStatuses).map(([uuid, status]) => {
-                return <Flex key={uuid} justify="between" align="center" p="2" style={{ border: "1px solid var(--gray-a6)", borderRadius: 8 }}><Text>{uuid}</Text><Text color={status === "升级中" ? "blue" : status === "离线或不支持" ? "red" : "green"}>{status}</Text></Flex>;
+			{upgradeItems.map((item) => {
+				const color = item.state === "succeeded" ? "green" : item.state === "failed" || item.state === "timeout" ? "red" : item.state === "queued" ? "gray" : "blue";
+				return <Flex key={item.uuid} justify="between" align="center" gap="3" p="2" style={{ border: "1px solid var(--gray-a6)", borderRadius: 8 }}>
+					<Flex direction="column" style={{ minWidth: 0 }}>
+						<Text weight="medium">{item.name || item.uuid}</Text>
+						<Text size="1" color="gray" style={{ overflowWrap: "anywhere" }}>{item.uuid}</Text>
+						<Text size="1" color="gray">{item.current_version || "未知版本"} → {item.target_version}</Text>
+						{item.message && <Text size="1" color={color}>{item.message}</Text>}
+					</Flex>
+					<Text color={color} style={{ whiteSpace: "nowrap" }}>{stateLabel[item.state] || item.state}</Text>
+				</Flex>;
               })}
+			{upgradeItems.length === 0 && <Text color="gray">正在读取升级状态…</Text>}
             </Flex>
           </Dialog.Content>
         </Dialog.Root>
