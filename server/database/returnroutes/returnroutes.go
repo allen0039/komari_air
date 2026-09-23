@@ -89,6 +89,14 @@ func normalizedASN(hop v2.TraceHop) string {
 		return ""
 	}
 	host := strings.ToLower(hop.Host)
+	// NextTrace can identify CUII even when its numeric ASN is absent.
+	// Match a complete metadata token; generic China Unicom/CNC labels are
+	// insufficient, and an explicit ASN above always takes precedence.
+	for _, field := range strings.Fields(host) {
+		if strings.Trim(field, "[](),;") == "cuii" {
+			return "9929"
+		}
+	}
 	switch {
 	case hasPrefix(ip, "59.43."), strings.Contains(host, "cn2-backbone"), strings.Contains(host, "ctcn2"):
 		return "4809"

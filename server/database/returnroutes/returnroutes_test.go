@@ -58,3 +58,20 @@ func TestTargetsMatchMiaoMiaoWuX(t *testing.T) {
 		}
 	}
 }
+
+func TestCUIIMetadataWithoutASN(t *testing.T) {
+	for _, tc := range []struct{ name, asn, host, want string }{
+		{"BWH missing ASN", "", "chinaunicom.cn 联通 CUII 中国联通 CNC-BACKBONE", "9929"},
+		{"explicit ASN wins", "4837", "CUII", "10099"},
+		{"generic CNC is insufficient", "", "中国联通 CNC-BACKBONE", "10099"},
+		{"substring is insufficient", "", "not-cuii", "10099"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			hops := []v2.TraceHop{{Hop: 4, IP: "162.219.85.5", ASN: "10099"}, {Hop: 7, IP: "210.78.24.42", ASN: tc.asn, Host: tc.host}, {Hop: 8, IP: "219.158.45.73", ASN: "4837"}}
+			got, _, _ := classify(Target{}, hops)
+			if got != tc.want {
+				t.Fatalf("got %s, want %s", got, tc.want)
+			}
+		})
+	}
+}
