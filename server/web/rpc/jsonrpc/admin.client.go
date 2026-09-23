@@ -2,6 +2,8 @@ package jsonrpc
 
 import (
 	"context"
+	"sync"
+	"time"
 
 	"github.com/komari-monitor/komari/database/auditlog"
 	"github.com/komari-monitor/komari/database/clients"
@@ -13,18 +15,59 @@ import (
 	agent_runtime "github.com/komari-monitor/komari/web/agent"
 )
 
+var agentUpgradeQueueMu sync.Mutex
+var agentUpgradeQueueRunning bool
+var agentUpgradeStatus = struct {
+	sync.RWMutex
+	items map[string]string
+}{items: make(map[string]string)}
+
+func adminGetAgentUpgradeStatus(_ context.Context, _ *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {
+	agentUpgradeStatus.RLock()
+	defer agentUpgradeStatus.RUnlock()
+	result := make(map[string]string, len(agentUpgradeStatus.items))
+	for k, v := range agentUpgradeStatus.items {
+		result[k] = v
+	}
+	return result, nil
+}
+
 func adminForceUpdateAgents(_ context.Context, _ *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {
 	all, err := clients.GetAllClientBasicInfo()
 	if err != nil {
 		return nil, rpc.MakeError(rpc.InternalError, err.Error(), nil)
 	}
-	accepted := 0
-	for _, client := range all {
-		if agent_runtime.HasV2Capability(client.UUID, "config:v1") && agent_runtime.DispatchV2Event(client.UUID, v2.MethodAgentUpdate, nil) {
-			accepted++
-		}
+	agentUpgradeQueueMu.Lock()
+	if agentUpgradeQueueRunning {
+		agentUpgradeQueueMu.Unlock()
+		return nil, rpc.MakeError(rpc.InvalidParams, "agent upgrade queue is already running", nil)
 	}
-	return map[string]any{"accepted": accepted}, nil
+	agentUpgradeQueueRunning = true
+	agentUpgradeQueueMu.Unlock()
+	go func() {
+		defer func() { agentUpgradeQueueMu.Lock(); agentUpgradeQueueRunning = false; agentUpgradeQueueMu.Unlock() }()
+		for i := 0; i < len(all); i += 2 {
+			end := i + 2
+			if end > len(all) {
+				end = len(all)
+			}
+			for _, client := range all[i:end] {
+				agentUpgradeStatus.Lock()
+				agentUpgradeStatus.items[client.UUID] = "升级中"
+				agentUpgradeStatus.Unlock()
+				ok := agent_runtime.HasV2Capability(client.UUID, "config:v1") && agent_runtime.DispatchV2Event(client.UUID, v2.MethodAgentUpdate, nil)
+				agentUpgradeStatus.Lock()
+				if !ok {
+					agentUpgradeStatus.items[client.UUID] = "离线或不支持"
+				}
+				agentUpgradeStatus.Unlock()
+			}
+			if end < len(all) {
+				time.Sleep(15 * time.Second)
+			}
+		}
+	}()
+	return map[string]any{"queued": len(all), "batch_size": 2, "interval_seconds": 15}, nil
 }
 
 // admin.client.go
@@ -33,6 +76,7 @@ func adminForceUpdateAgents(_ context.Context, _ *rpc.JsonRpcRequest) (any, *rpc
 
 func init() {
 	RegisterWithGroupAndMeta("forceUpdateAgents", rpc.RoleAdmin, adminForceUpdateAgents, &rpc.MethodMeta{Name: "admin:forceUpdateAgents", Summary: "Force online agents to check for updates", Returns: "{ accepted: number }"})
+	RegisterWithGroupAndMeta("getAgentUpgradeStatus", rpc.RoleAdmin, adminGetAgentUpgradeStatus, &rpc.MethodMeta{Name: "admin:getAgentUpgradeStatus", Summary: "Get agent upgrade status", Returns: "object"})
 	RegisterWithGroupAndMeta("addClient", rpc.RoleAdmin, adminAddClient, &rpc.MethodMeta{
 		Name:    "admin:addClient",
 		Summary: "Create a new client",
