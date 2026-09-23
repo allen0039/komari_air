@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ type Target struct {
 	Protocol     v2.TraceProtocol `json:"protocol"`
 	Enabled      bool             `json:"enabled"`
 	ProbeEnabled bool             `json:"probe_enabled"`
+	SortOrder    int              `json:"sort_order"`
 }
 
 // These are the same carrier endpoints used by MiaoMiaoWu X's current return
@@ -47,8 +49,11 @@ func Targets() []Target {
 			}
 			for i, target := range result {
 				if saved, ok := byID[target.ID]; ok {
-					result[i].Host, result[i].Region, result[i].Enabled = saved.Host, saved.Region, saved.Enabled
+					result[i].Host, result[i].Region, result[i].Enabled, result[i].SortOrder = saved.Host, saved.Region, saved.Enabled, saved.SortOrder
 				}
+			}
+			if len(stored) == len(result) {
+				sort.SliceStable(result, func(i, j int) bool { return result[i].SortOrder < result[j].SortOrder })
 			}
 		}
 	}
@@ -127,7 +132,7 @@ func SaveTargets(input []Target) ([]Target, error) {
 		if len(item.Region) == 0 || len([]rune(item.Region)) > 32 {
 			return nil, fmt.Errorf("invalid region for %s", base.Carrier)
 		}
-		base.Host, base.Region, base.Enabled = item.Host, item.Region, item.Enabled
+		base.Host, base.Region, base.Enabled, base.SortOrder = item.Host, item.Region, item.Enabled, i
 		result[i] = base
 	}
 	if err := config.Set("return_route_targets", result); err != nil {

@@ -761,6 +761,8 @@
     "saveSchedule": "保存时间",
     "scheduleSaved": "探测时间已保存",
     "storage": "日志占用约 {{size}}",
+    "targetView": "探测地址",
+    "serverView": "服务器视图",
     "enabledSaved": "三网探测已开启",
     "disabledSaved": "三网探测已关闭",
     "host": "目标域名或 IPv4 地址",

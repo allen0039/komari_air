@@ -761,6 +761,8 @@
     "saveSchedule": "Save time",
     "scheduleSaved": "Probe time saved",
     "storage": "Logs use about {{size}}",
+    "targetView": "Probe targets",
+    "serverView": "Server view",
     "enabledSaved": "Return route probes enabled",
     "disabledSaved": "Return route probes disabled",
     "host": "Target hostname or IPv4 address",
