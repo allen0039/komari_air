@@ -2,7 +2,7 @@ import Loading from "@/components/loading";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button, Card, Dialog, Flex, Switch, Tabs, Text, TextField } from "@radix-ui/themes";
-import { GripVertical, RefreshCw, Save, Trash2 } from "lucide-react";
+import { GripVertical, Play, RefreshCw, Save, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -63,6 +63,8 @@ export default function ReturnRoutes() {
   const [retentionSaving, setRetentionSaving] = useState(false);
   const [servers, setServers] = useState<ServerRoute[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [queueRunning, setQueueRunning] = useState(false);
+  const [clearResultsOpen, setClearResultsOpen] = useState(false);
   const pageSize = 20;
 
   const load = useCallback(async () => {
@@ -176,6 +178,20 @@ export default function ReturnRoutes() {
     if (from < 0 || to < 0) return; const [item] = next.splice(from, 1); next.splice(to, 0, item); setTargets(next.map((x, index) => ({ ...x, sort_order: index }))); setDragId(null);
   };
 
+  const runOne = async (uuid: string) => {
+    try { const result = await call<{ uuid: string }, { accepted: number }>("admin:runReturnRoutes", { uuid }); toast.success(t("returnRoute.started", { count: result.accepted })); }
+    catch (err) { toast.error(err instanceof Error ? err.message : String(err)); }
+  };
+  const runQueued = async () => {
+    setQueueRunning(true);
+    try { const result = await call<Record<string, never>, { queued: number }>("admin:runAllReturnRoutes", {}); toast.success(t("returnRoute.queued", { count: result.queued })); window.setTimeout(() => setQueueRunning(false), Math.max(1, result.queued) * 25000); }
+    catch (err) { toast.error(err instanceof Error ? err.message : String(err)); setQueueRunning(false); }
+  };
+  const clearResults = async () => {
+    try { await call<{ confirm: boolean }, { cleared: boolean }>("admin:clearReturnRouteResults", { confirm: true }); setClearResultsOpen(false); setServers((current) => current.map((server) => ({ ...server, return_routes: [] }))); toast.success(t("returnRoute.resultsCleared")); }
+    catch (err) { toast.error(err instanceof Error ? err.message : String(err)); }
+  };
+
   if (loading) return <Loading />;
   if (error) return <div className="p-4">{error}</div>;
 
@@ -221,7 +237,7 @@ export default function ReturnRoutes() {
             <Flex justify="between" align="center" p="3"><Text size="2" color="gray">{t("returnRoute.note")}</Text><Button onClick={() => void save()} disabled={saving || !targets}><Save size={16} />{t("returnRoute.save")}</Button></Flex>
           </Card>
         </Tabs.Content>
-        <Tabs.Content value="servers" className="pt-3"><Card><Table><TableHeader><TableRow><TableHead>{t("returnRoute.server")}</TableHead><TableHead>{t("returnRoute.telecom")}</TableHead><TableHead>{t("returnRoute.unicom")}</TableHead><TableHead>{t("returnRoute.mobile")}</TableHead></TableRow></TableHeader><TableBody>{servers.map((server) => <TableRow key={server.uuid}><TableCell>{server.name}</TableCell>{["telecom", "unicom", "mobile"].map((carrier) => { const route = server.return_routes?.find((item) => item.carrier === carrier); return <TableCell key={carrier}><span className={route?.stale ? "text-orange-600" : "text-green-700"}>{route?.route_type || "—"}</span></TableCell>; })}</TableRow>)}</TableBody></Table></Card></Tabs.Content>
+        <Tabs.Content value="servers" className="pt-3"><Card><Flex justify="end" gap="2" p="3"><Button onClick={() => void runQueued()} disabled={queueRunning}><Play size={15} />{queueRunning ? t("returnRoute.queuedRunning") : t("returnRoute.runAll")}</Button><Dialog.Root open={clearResultsOpen} onOpenChange={setClearResultsOpen}><Dialog.Trigger><Button color="red" variant="soft"><Trash2 size={15} />{t("returnRoute.clearResults")}</Button></Dialog.Trigger><Dialog.Content maxWidth="420px"><Dialog.Title>{t("returnRoute.clearResults")}</Dialog.Title><Dialog.Description>{t("returnRoute.clearResultsConfirm")}</Dialog.Description><Flex justify="end" gap="2" mt="4"><Dialog.Close><Button variant="soft">{t("returnRoute.cancel")}</Button></Dialog.Close><Button color="red" onClick={() => void clearResults()}>{t("returnRoute.clearResults")}</Button></Flex></Dialog.Content></Dialog.Root></Flex><Table><TableHeader><TableRow><TableHead>{t("returnRoute.server")}</TableHead><TableHead>{t("returnRoute.telecom")}</TableHead><TableHead>{t("returnRoute.unicom")}</TableHead><TableHead>{t("returnRoute.mobile")}</TableHead><TableHead>{t("returnRoute.action")}</TableHead></TableRow></TableHeader><TableBody>{servers.map((server) => <TableRow key={server.uuid}><TableCell>{server.name}</TableCell>{["telecom", "unicom", "mobile"].map((carrier) => { const route = server.return_routes?.find((item) => item.carrier === carrier); return <TableCell key={carrier}><span className={route?.stale ? "text-orange-600" : "text-green-700"}>{route?.route_type || "—"}</span></TableCell>; })}<TableCell><Button size="1" variant="soft" onClick={() => void runOne(server.uuid)}><Play size={13} />{t("returnRoute.runOne")}</Button></TableCell></TableRow>)}</TableBody></Table></Card></Tabs.Content>
       </Tabs.Root>
       <Card>
         <Flex direction="column" gap="3" p="2">

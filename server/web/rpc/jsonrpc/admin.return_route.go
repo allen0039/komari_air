@@ -44,11 +44,11 @@ func adminListReturnRouteLogs(_ context.Context, req *rpc.JsonRpcRequest) (any, 
 }
 
 func adminRunAllReturnRoutes(_ context.Context, _ *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {
-	accepted, err := returnroutes.RunAll()
+	accepted, err := returnroutes.RunAllQueued()
 	if err != nil {
 		return nil, rpc.MakeError(rpc.InternalError, err.Error(), nil)
 	}
-	return map[string]any{"accepted": accepted}, nil
+	return map[string]any{"queued": accepted, "sequential": true}, nil
 }
 
 func adminClearReturnRouteLogs(_ context.Context, req *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {

@@ -19,6 +19,8 @@ import (
 
 var scheduleMu sync.Mutex
 var resultMu sync.Mutex
+var queueMu sync.Mutex
+var queueRunning bool
 
 func classify(target Target, hops []v2.TraceHop) (string, string, string) {
 	_ = target // The route is classified from the path, not from the destination carrier.
@@ -288,7 +290,7 @@ func RunForClient(clientID string) int {
 func RunScheduled() {
 	scheduleMu.Lock()
 	defer scheduleMu.Unlock()
-	_, _ = RunAll()
+	_, _ = RunAllQueued()
 }
 
 // RunAll dispatches enabled targets to every online capable agent.
@@ -302,6 +304,30 @@ func RunAll() (int, error) {
 		accepted += RunForClient(client.UUID)
 	}
 	return accepted, nil
+}
+
+// RunAllQueued probes one server at a time. Each server receives its three
+// target tasks, then the queue waits beyond the agent timeout before moving on.
+func RunAllQueued() (int, error) {
+	all, err := clients.GetAllClientBasicInfo()
+	if err != nil {
+		return 0, err
+	}
+	queueMu.Lock()
+	if queueRunning {
+		queueMu.Unlock()
+		return 0, fmt.Errorf("return route probe queue is already running")
+	}
+	queueRunning = true
+	queueMu.Unlock()
+	go func() {
+		defer func() { queueMu.Lock(); queueRunning = false; queueMu.Unlock() }()
+		for _, client := range all {
+			RunForClient(client.UUID)
+			time.Sleep(25 * time.Second)
+		}
+	}()
+	return len(all), nil
 }
 
 type ProbeLog struct {
