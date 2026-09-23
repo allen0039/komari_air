@@ -200,7 +200,7 @@ export default function ReturnRoutes() {
                 <TableCell>{log.client_name || log.client_id}</TableCell>
                 <TableCell>{t(`returnRoute.${log.carrier}`)}</TableCell>
                 <TableCell>{log.target_host}</TableCell>
-                <TableCell>{log.ok ? log.route_type : t("returnRoute.failed")}</TableCell>
+                <TableCell>{log.ok ? log.route_type : t("returnRoute.probeFailed")}</TableCell>
                 <TableCell className="whitespace-normal min-w-64 max-w-xl break-words">{log.reason}</TableCell>
               </TableRow>)}
               {!logs.length && <TableRow><TableCell colSpan={6} className="text-center">{logsLoading ? t("returnRoute.loading") : t("returnRoute.empty")}</TableCell></TableRow>}

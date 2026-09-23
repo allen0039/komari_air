@@ -761,6 +761,7 @@
     "save": "保存设置",
     "saved": "三网探测设置已保存",
     "failed": "保存失败",
+    "probeFailed": "探测失败",
     "telecom": "电信",
     "unicom": "联通",
     "mobile": "移动",
