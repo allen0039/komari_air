@@ -43,10 +43,4 @@ echo "Building server..."
   go build -trimpath -ldflags="-X github.com/komari-monitor/komari/utils.CurrentVersion=${VERSION}" -o "${BUILD_DIR}/komari" .
 )
 
-echo "Building agent..."
-(
-  cd "${ROOT_DIR}/agent"
-  go build -trimpath -ldflags="-X github.com/komari-monitor/komari-agent/update.CurrentVersion=${VERSION}" -o "${BUILD_DIR}/komari-agent" .
-)
-
 echo "Build completed: ${BUILD_DIR}"

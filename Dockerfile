@@ -11,21 +11,23 @@ RUN npm ci && npm run build
 FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS agent-builder
 
 WORKDIR /src/agent
-ARG KOMARI_VERSION
-RUN test -n "$KOMARI_VERSION"
-COPY agent/go.mod agent/go.sum ./
+ARG AGENT_VERSION
+RUN test -n "$AGENT_VERSION" \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/* \
+    && git clone --depth 1 --branch "v${AGENT_VERSION}" https://github.com/allen0039/komari_agent.git /src/agent
 RUN go mod download
-COPY agent/ ./
 
 RUN set -eux; \
     mkdir -p /out; \
-    VERSION="${KOMARI_VERSION}"; \
+    VERSION="${AGENT_VERSION}"; \
     printf '%s' "$VERSION" > /out/version; \
     for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do \
       os="${target%/*}"; arch="${target#*/}"; ext=""; \
       if [ "$os" = "windows" ]; then ext=".exe"; fi; \
       CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath \
-        -ldflags="-s -w -X github.com/komari-monitor/komari-agent/update.CurrentVersion=$VERSION" \
+        -ldflags="-s -w -X github.com/allen0039/komari_agent/update.CurrentVersion=$VERSION" \
         -o "/out/komari-agent-$os-$arch$ext" .; \
     done; \
     cp install.sh install.ps1 /out/

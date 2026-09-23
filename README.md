@@ -27,9 +27,10 @@
 ```text
 server/  Komari 服务端
 web/     管理后台和公开监控页面
-agent/   节点 Agent
 scripts/ 本仓库构建脚本
 ```
+
+节点 Agent 已拆分到独立仓库 [komari_agent](https://github.com/allen0039/komari_agent)。主控与 Agent 分别版本化；本仓库的 `AGENT_VERSION` 指定镜像内置的 Agent 版本，发布主控版本不会自动更新 Agent。
 
 ## 构建
 
@@ -46,7 +47,8 @@ scripts/ 本仓库构建脚本
 1. 使用 `npm ci` 安装前端依赖并构建前端。
 2. 将前端产物压缩为服务端需要的嵌入资源。
 3. 编译服务端到 `build/komari`。
-4. 编译 Agent 到 `build/komari-agent`。
+
+Agent 请在独立仓库中构建。容器构建会按 `AGENT_VERSION` 从独立仓库的对应 Git tag 获取源码并编译，主控提供的 Agent 下载和一键升级仍使用该内置版本。
 
 仅开发前端：
 
@@ -115,6 +117,6 @@ sudo ./scripts/deploy.sh stop
 ## 许可证
 
 - `server/` 保留其上游 MIT 许可证和 NOTICE，见 `server/LICENSE` 与 `server/NOTICE`。
-- `agent/` 保留其上游 MIT 许可证，见 `agent/LICENSE`。
+- Agent 的上游 MIT 许可证随独立仓库迁移，见 [komari_agent/LICENSE](https://github.com/allen0039/komari_agent/blob/main/LICENSE)。
 - 上游 `komari-web` 在上述导入版本中没有提供许可证文件。本仓库不为 `web/` 追加或推定许可证；其版权和使用授权仍由原作者及相关权利人决定。
 - 本仓库没有声明覆盖全部目录的统一许可证，也没有授予超出各组件原有授权范围的额外权利。
