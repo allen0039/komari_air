@@ -21,6 +21,7 @@ var agentUpgradeQueueMu sync.Mutex
 var agentUpgradeQueueRunning bool
 
 const agentUpgradeConfirmationTimeout = 3 * time.Minute
+const agentUpgradeBatchSize = 10
 
 func adminGetAgentUpgradeStatus(_ context.Context, _ *rpc.JsonRpcRequest) (any, *rpc.JsonRpcError) {
 	return agent_runtime.GetUpgradeStatusSnapshot(), nil
@@ -86,8 +87,8 @@ func adminForceUpdateAgents(_ context.Context, req *rpc.JsonRpcRequest) (any, *r
 			agentUpgradeQueueMu.Unlock()
 		}()
 		var confirmations sync.WaitGroup
-		for i := 0; i < len(all); i += 2 {
-			end := i + 2
+		for i := 0; i < len(all); i += agentUpgradeBatchSize {
+			end := i + agentUpgradeBatchSize
 			if end > len(all) {
 				end = len(all)
 			}
@@ -122,7 +123,7 @@ func adminForceUpdateAgents(_ context.Context, req *rpc.JsonRpcRequest) (any, *r
 		}
 		confirmations.Wait()
 	}()
-	return map[string]any{"queued": len(all), "batch_size": 2, "interval_seconds": 15, "target_version": targetVersion, "timeout_seconds": int(agentUpgradeConfirmationTimeout.Seconds())}, nil
+	return map[string]any{"queued": len(all), "batch_size": agentUpgradeBatchSize, "interval_seconds": 15, "target_version": targetVersion, "timeout_seconds": int(agentUpgradeConfirmationTimeout.Seconds())}, nil
 }
 
 func waitForAgentUpgrade(uuid, targetVersion string) {

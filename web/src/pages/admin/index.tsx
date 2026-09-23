@@ -1141,7 +1141,7 @@ const Header = ({
           <Dialog.Content style={{ maxWidth: 720 }}>
             <Dialog.Title>Agent 梯次升级</Dialog.Title>
 			<Dialog.Description>
-				目标版本 {upgradeSnapshot.target_version || "读取中"}；每批 2 台，间隔 15 秒。每个节点最多等待 3 分钟确认，之后会明确标记为超时。
+				目标版本 {upgradeSnapshot.target_version || "读取中"}；每批 10 台，间隔 15 秒。每个节点最多等待 3 分钟确认，之后会明确标记为超时。
 			</Dialog.Description>
 			<Flex gap="3" mt="3" wrap="wrap">
 				<Text color={upgradeSnapshot.running ? "blue" : "gray"}>{upgradeSnapshot.running ? "任务进行中" : "任务已结束"}</Text>
