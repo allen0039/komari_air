@@ -1,16 +1,16 @@
 # komari_air
 
-基于 [Komari](https://github.com/komari-monitor/komari) 的社区二次开发版本，面向自托管服务器监控。这个分支保留节点监控和日常运维所需的核心能力，并加入 Agent 分批升级和更轻量的部署流程。
+基于 [Komari](https://github.com/komari-monitor/komari) 的社区二次开发版本，面向自托管服务器监控。项目保留节点监控、延迟监测和常用管理能力，提供预构建容器镜像与面板内的 Agent 升级管理。
 
 > 本项目不是 Komari 官方发行版，也不隶属于原项目维护者。
 
 ## 功能
 
-- **节点监控**：查看在线状态、CPU、内存、磁盘、网络、GPU 等资源指标和历史数据。
+- **节点监控**：查看在线状态、资源指标和历史数据，包括 CPU、内存、磁盘、网络及受支持设备的 GPU 信息。
 - **延迟监测**：创建 Ping 任务，在公开页面和管理仪表盘查看延迟、丢包及统计结果。
 - **通知**：配置离线、负载和消息发送渠道等通知规则。
-- **Agent 管理**：面板提供安装脚本和匹配平台的 Agent 下载；支持选定节点先行升级、在线节点分批升级和逐节点状态确认。Agent 源码在独立仓库 [komari_agent](https://github.com/allen0039/komari_agent) 中维护。
-- **主题与插件**：支持主题管理、主题市场，以及通过 ZIP 上传的本地插件安装、启停、配置和日志查看。
+- **Agent 管理**：面板提供安装脚本和匹配平台的 Agent 下载；支持先升级选定节点，再分批升级在线节点，并查看逐节点结果。离线或不支持远程升级的 Agent 需要在节点侧处理。Agent 源码在独立仓库 [komari_agent](https://github.com/allen0039/komari_agent) 中维护。
+- **主题与插件**：内置 [Emerald Globe Pro](https://github.com/allen0039/komari-theme-emerald-globe-pro) 作为新安装的默认公开页面主题；保留原版 `default` 主题、主题市场，以及通过 ZIP 上传的本地插件管理。
 - **账号与运维**：密码登录、会话管理、可选双因素认证、数据库迁移/恢复、备份和 GeoIP 设置。
 
 ### 有意移除的功能
@@ -21,8 +21,11 @@
 - OAuth、SSO 和其他第三方管理员登录
 - 管理员 API Key 登录
 - 插件市场（本地插件管理仍然保留；主题市场仍然可用）
+- 三网回程路由探测
 
 Agent 自动发现使用独立的注册密钥，不等同于管理员登录方式。
+
+已有部署的主题设置会保留。可在后台「主题管理」中切换到 `emerald-globe-pro`，或切回原版 `default`。新安装默认使用 Emerald Globe Pro；管理后台仍使用内置的原版界面。
 
 ## 快速部署
 
@@ -79,7 +82,7 @@ sudo ./scripts/deploy.sh stop
 - `GET /api/public/agent/version`
 - `GET /api/public/agent/download/:os/:arch`
 
-Agent 与主控独立版本化。`VERSION` 表示主控版本，`AGENT_VERSION` 表示镜像内置的稳定版 Agent；更新主控版本不会自动改变已有节点的版本。
+Agent 与主控独立版本化。`VERSION` 表示主控版本，`AGENT_VERSION` 表示镜像内置的稳定版 Agent。面板升级不会直接替换已有节点的 Agent；请在后台确认节点版本，并按需执行升级。
 
 ## 从源码构建
 
@@ -89,7 +92,7 @@ Agent 与主控独立版本化。`VERSION` 表示主控版本，`AGENT_VERSION` 
 ./scripts/build.sh
 ```
 
-构建脚本会安装前端依赖、构建 React/Vite 前端、压缩并嵌入前端资源，然后将服务端编译到 `build/komari`。单独开发前端：
+构建脚本会安装前端依赖、构建 React/Vite 前端、压缩并嵌入原版前端资源，然后将服务端编译到 `build/komari`。Emerald Globe Pro 的打包文件位于 `server/web/public/bundledTheme/`，随服务端构建一同嵌入。单独开发前端：
 
 ```bash
 cd web
@@ -111,7 +114,6 @@ cd ../web && npm run lint && npm run build
 server/   Go 服务端、数据库和 Agent 协议
 web/      React/Vite 管理后台与公开监控页面
 scripts/  构建、部署和发布脚本
-docs/     功能说明
 ```
 
 ## 安全与数据

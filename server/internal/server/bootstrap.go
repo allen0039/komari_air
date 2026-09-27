@@ -9,6 +9,7 @@ import (
 	"github.com/komari-monitor/komari/database/dbcore"
 	"github.com/komari-monitor/komari/internal/config"
 	"github.com/komari-monitor/komari/utils"
+	"github.com/komari-monitor/komari/web/public"
 )
 
 // Bootstrap initializes the data directory, primary database, and settings.
@@ -29,6 +30,9 @@ func (a *App) Bootstrap() error {
 	}
 	a.dbReady = true
 	a.addCleanup("database", func(context.Context) error { return dbcore.Close() })
+	if err := public.InstallBundledThemes(); err != nil {
+		return fmt.Errorf("failed to install bundled themes: %w", err)
+	}
 
 	gin.SetMode(gin.ReleaseMode)
 	settings, err := config.GetManyAs[config.Settings]()

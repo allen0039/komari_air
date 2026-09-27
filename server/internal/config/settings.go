@@ -10,7 +10,7 @@ type Settings struct {
 	CorsAllowedOrigins     string `json:"cors_allowed_origins" default:""`                     // API 跨域允许列表
 	WsOriginCheckEnabled   bool   `json:"ws_origin_check_enabled" default:"true"`              // 是否校验 WebSocket Origin
 	WsAllowedOrigins       string `json:"ws_allowed_origins" default:""`                       // WebSocket Origin 允许列表
-	Theme                  string `json:"theme" default:"default"`                             // 主题名称，默认 'default'
+	Theme                  string `json:"theme" default:"emerald-globe-pro"`                   // 主题名称，默认使用 Emerald Globe Pro
 	PrivateSite            bool   `json:"private_site" default:"false"`                        // 是否为私有站点，默认 false
 	AutoDiscoveryKey       string `json:"auto_discovery_key" default:""`                       // 自动发现密钥
 	ScriptDomain           string `json:"script_domain" default:""`                            // 自定义脚本域名

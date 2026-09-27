@@ -85,6 +85,30 @@ func TestEmbeddedDistDoesNotEmbedRawFiles(t *testing.T) {
 	}
 }
 
+func TestInstallBundledThemes(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	if err := InstallBundledThemes(); err != nil {
+		t.Fatalf("InstallBundledThemes() error = %v", err)
+	}
+
+	manifestPath := filepath.Join("data", "theme", PreferredTheme, "komari-theme.json")
+	manifest, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("read bundled theme manifest: %v", err)
+	}
+	if !strings.Contains(string(manifest), `"short": "emerald-globe-pro"`) {
+		t.Fatalf("bundled theme manifest does not identify %q", PreferredTheme)
+	}
+	if _, err := os.Stat(filepath.Join("data", "theme", PreferredTheme, "dist", IndexFile)); err != nil {
+		t.Fatalf("bundled theme index is missing: %v", err)
+	}
+
+	if err := InstallBundledThemes(); err != nil {
+		t.Fatalf("reinstalling bundled theme should be a no-op: %v", err)
+	}
+}
+
 func TestStaticRestrictedDoesNotServeCustomAssetOverride(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	t.Chdir(t.TempDir())

@@ -27,6 +27,7 @@ const (
 	ThemesDir          = "theme"
 	FaviconFile        = "favicon.ico"
 	DefaultTheme       = "default"
+	PreferredTheme     = "emerald-globe-pro"
 	LanguageCookieName = "language"
 
 	// 主题内部结构定义
@@ -144,7 +145,7 @@ func static(r *gin.RouterGroup, noRoute func(handlers ...gin.HandlerFunc), force
 			config.CustomHeadKey:  "",
 			config.CustomBodyKey:  "",
 			config.SitenameKey:    "Komari Monitor",
-			config.ThemeKey:       DefaultTheme,
+			config.ThemeKey:       PreferredTheme,
 		})
 		return cfg
 	}
