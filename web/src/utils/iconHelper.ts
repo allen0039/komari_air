@@ -25,7 +25,6 @@ import {
   Blocks,
   Settings2,
   LayoutDashboard,
-  Route,
   SquareTerminal
 } from "lucide-react";
 
@@ -33,7 +32,6 @@ import {
 // Map icon names defined in menuConfig.json to their components
 export const iconMap: Record<string, React.ComponentType<any>> = {
   Server,
-  Route,
   Bolt,
   Home,
   BarChart2,

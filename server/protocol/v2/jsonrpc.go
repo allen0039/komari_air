@@ -15,7 +15,6 @@ const (
 	MethodAgentConfigReport = "agent.config.report"
 	MethodAgentUpdate       = "agent.update"
 	MethodAgentUpdateResult = "agent.updateResult"
-	MethodAgentTraceResult  = "agent.traceResult"
 )
 
 type Request struct {

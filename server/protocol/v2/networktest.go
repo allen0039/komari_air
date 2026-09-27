@@ -75,8 +75,6 @@ type NextTraceResult struct {
 	Truncated  bool            `json:"truncated"`
 }
 
-type TraceResultParams = NextTraceResult
-
 type TraceSummary struct {
 	HopCount   int     `json:"hop_count"`
 	Reached    bool    `json:"reached"`

@@ -26,13 +26,6 @@ export type NodeDetail = {
   expired_at: string;
   created_at: string;
   updated_at: string;
-  return_routes?: Array<{
-    carrier: "telecom" | "unicom" | "mobile" | string;
-    route_type: string;
-    confidence: string;
-    tested_at: string;
-    stale: boolean;
-  }>;
   [key: string]: any; 
 };
 
