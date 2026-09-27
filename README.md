@@ -1,41 +1,67 @@
 # komari_air
 
-基于 [Komari](https://github.com/komari-monitor/komari) 的社区二次开发版本，专注于自托管服务器监控。项目保留节点监控和常用管理能力，精简不需要的入口，并增加回程路由探测与 Agent 升级管理。
+基于 [Komari](https://github.com/komari-monitor/komari) 的社区二次开发版本，面向自托管服务器监控。这个分支保留节点监控和日常运维所需的核心能力，并加入三网回程探测、Agent 分批升级和更轻量的部署流程。
 
 > 本项目不是 Komari 官方发行版，也不隶属于原项目维护者。
 
-## 功能概览
+## 功能
 
-- 查看节点在线状态、资源指标和历史数据；支持 Ping、远程命令、主题与本地插件管理。
-- 支持密码登录、会话管理和可选的两步验证。
-- 支持 Linux 节点的三网回程探测，可查看历史采样和不确定结果；探测结论不代表带宽或线路质量保证。详见 [功能说明](docs/return-route-beta.md)。
-- 提供 Agent 版本检查、下载和分批升级能力；Agent 由独立仓库 [komari_agent](https://github.com/allen0039/komari_agent) 维护。
-- 对仪表盘的数据加载做了优化，减少不必要的重复请求。
+- **节点监控**：查看在线状态、CPU、内存、磁盘、网络、GPU 等资源指标和历史数据。
+- **延迟监测**：创建 Ping 任务，在公开页面和管理仪表盘查看延迟、丢包及统计结果。
+- **通知**：配置离线、负载和消息发送渠道等通知规则。
+- **三网回程探测**：针对支持 `trace:v1` 的 Linux IPv4 Agent，分别探测电信、联通、移动目标；支持自定义目标、每日计划、手动探测、结果汇总和日志保留。结果使用保守分类，`Unknown` 或低置信度结果不代表线路质量保证。详见 [回程探测说明](docs/return-route-beta.md)。
+- **Agent 管理**：面板提供安装脚本和匹配平台的 Agent 下载；支持选定节点先行升级、在线节点分批升级和逐节点状态确认。Agent 源码在独立仓库 [komari_agent](https://github.com/allen0039/komari_agent) 中维护。
+- **主题与插件**：支持主题管理、主题市场，以及通过 ZIP 上传的本地插件安装、启停、配置和日志查看。
+- **账号与运维**：密码登录、会话管理、可选双因素认证、数据库迁移/恢复、备份和 GeoIP 设置。
 
-本分支移除了 Web 终端、文件管理与传输、OAuth/SSO/第三方登录、管理员 API Key 登录和插件市场。本地插件安装与管理仍然保留。
+### 有意移除的功能
+
+当前分支不提供以下入口：
+
+- Web 终端、文件管理和文件传输
+- OAuth、SSO 和其他第三方管理员登录
+- 管理员 API Key 登录
+- 插件市场（本地插件管理仍然保留；主题市场仍然可用）
+
+Agent 自动发现使用独立的注册密钥，不等同于管理员登录方式。
 
 ## 快速部署
 
-需要一台可以运行 Docker 和 Docker Compose 的 Linux 主机。默认对外端口为 `25774`，数据保存在部署目录的 `data/` 中。
+需要一台运行 Docker 和 Docker Compose 的 Linux 主机。默认端口为 `25774`，数据持久化在部署目录的 `data/` 中。
+
+### Docker Compose
 
 ```bash
 git clone https://github.com/allen0039/komari_air.git
 cd komari_air
+docker compose pull
 docker compose up -d
 ```
 
-访问 `http://<服务器地址>:25774` 完成初始化。公开部署时，请配置 HTTPS 反向代理、强密码，并按需限制管理入口的访问范围。
+访问 `http://<服务器地址>:25774` 完成初始化。公开部署时，请在前面配置 HTTPS 反向代理、设置强密码，并限制管理入口的访问范围。
 
-也可以使用仓库提供的 [部署脚本](scripts/deploy.sh)。该脚本会安装缺失的依赖、拉取预构建镜像并等待健康检查；运行前请先阅读脚本：
+### 一键部署脚本
+
+脚本会检查并安装缺失的 Git、Docker 和 Docker Compose，拉取预构建镜像，启动容器并等待健康检查通过。重复运行可更新现有部署；脚本执行前请先阅读其内容。
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/allen0039/komari_air/main/scripts/deploy.sh
 sudo bash deploy.sh
 ```
 
-脚本默认安装到 `/opt/komari_air`，可通过 `KOMARI_INSTALL_DIR`、`KOMARI_PORT` 和 `KOMARI_TZ` 调整目录、端口与时区。再次运行部署命令可更新服务。镜像发布在 `docker.io/allen0039/komari_air` 和 `ghcr.io/allen0039/komari_air`。
+默认安装目录为 `/opt/komari_air`。可通过环境变量调整安装目录、端口和时区：
 
-常用管理命令（使用部署脚本安装后）：
+```bash
+curl -fsSL https://raw.githubusercontent.com/allen0039/komari_air/main/scripts/deploy.sh \
+  | sudo env KOMARI_INSTALL_DIR=/srv/komari_air KOMARI_PORT=8080 KOMARI_TZ=Asia/Shanghai bash
+```
+
+镜像发布在 Docker Hub 和 GHCR：
+
+- `docker.io/allen0039/komari_air`
+- `ghcr.io/allen0039/komari_air`
+
+使用部署脚本安装后，可在安装目录执行：
 
 ```bash
 cd /opt/komari_air
@@ -45,15 +71,26 @@ sudo ./scripts/deploy.sh restart
 sudo ./scripts/deploy.sh stop
 ```
 
+### Agent 安装
+
+容器启动后，在管理后台添加节点并复制生成的安装命令。面板会根据节点平台提供对应脚本和 Agent 构建；也可以直接访问以下公开端点：
+
+- `GET /api/public/agent/install.sh`
+- `GET /api/public/agent/install.ps1`
+- `GET /api/public/agent/version`
+- `GET /api/public/agent/download/:os/:arch`
+
+Agent 与主控独立版本化。`VERSION` 表示主控版本，`AGENT_VERSION` 表示镜像内置的稳定版 Agent；更新主控版本不会自动改变已有节点的版本。
+
 ## 从源码构建
 
-需要 Node.js 22+、npm、Go 1.25+、`tar`、`zstd`，以及 SQLite 构建所需的 CGO 工具链。
+需要 Node.js 22+、npm、Go 1.25+、`tar`、`zstd`，以及 SQLite 所需的 CGO 工具链。
 
 ```bash
 ./scripts/build.sh
 ```
 
-脚本安装前端依赖、构建并打包前端资源，然后编译服务端到 `build/komari`。单独开发前端可运行：
+构建脚本会安装前端依赖、构建 React/Vite 前端、压缩并嵌入前端资源，然后将服务端编译到 `build/komari`。单独开发前端：
 
 ```bash
 cd web
@@ -62,20 +99,27 @@ npm ci
 npm run dev
 ```
 
-主控版本见 `VERSION`，镜像内置的稳定版 Agent 版本见 `AGENT_VERSION`。发布主控版本不会自动更改 Agent 版本。
+常用检查命令：
+
+```bash
+cd server && go test ./...
+cd ../web && npm run lint && npm run build
+```
 
 ## 项目结构
 
 ```text
-server/   服务端
-web/      管理后台与公开监控页面
+server/   Go 服务端、数据库和 Agent 协议
+web/      React/Vite 管理后台与公开监控页面
 scripts/  构建、部署和发布脚本
 docs/     功能说明
 ```
 
 ## 安全与数据
 
-本项目具备远程命令等管理能力，只应部署在你有权管理的系统上。不要将数据库、环境文件、Agent Token 或其他凭据提交到仓库。部署数据位于 `data/`，升级或停止容器前建议自行备份。
+这是一个自托管的监控和运维面板。请只在你拥有或获准管理的系统中部署，并将管理入口放在 HTTPS 和受控网络之后。上传的插件可能声明执行子进程等权限，请在启用前检查来源和权限。
+
+不要把数据库、`.env`、Agent Token、自动发现密钥或其他凭据提交到仓库。部署数据位于 `data/`；升级、迁移或停止容器前建议先备份。
 
 ## 上游与许可
 
@@ -85,4 +129,4 @@ docs/     功能说明
 - Web：[`komari-monitor/komari-web@3324844`](https://github.com/komari-monitor/komari-web/commit/3324844cfa347f18c83435f1ccf5634df7e5b768)
 - Agent：[`komari-monitor/komari-agent@c7bafb7`](https://github.com/komari-monitor/komari-agent/commit/c7bafb79b1a73ed9e14e2c248ae4d4163e506036)
 
-`server/` 保留上游 MIT [许可证](server/LICENSE)和 [NOTICE](server/NOTICE)。Agent 的许可证见独立仓库。导入时的上游 Web 源码未附许可证文件；本仓库不替其推定授权，也没有声明覆盖全部目录的统一许可证。
+`server/` 保留上游 MIT [许可证](server/LICENSE)和 [NOTICE](server/NOTICE)。Agent 许可证见独立仓库。导入时的上游 Web 源码未附许可证文件；本仓库不替其推定授权，也没有声明覆盖全部目录的统一许可证。
