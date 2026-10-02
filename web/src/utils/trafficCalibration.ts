@@ -32,3 +32,16 @@ export function calibratedTrafficUsed(
 ): number {
   return trafficUsedByType(up, down, type) + Math.max(0, offset || 0);
 }
+
+// Return a human-readable unit without losing bytes when the unchanged field is saved.
+export function formatTrafficCalibration(bytes: number): string {
+  if (!Number.isSafeInteger(bytes) || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  const power = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const amount = bytes / 1024 ** power;
+  for (let digits = 0; digits <= 15; digits++) {
+    const value = `${amount.toFixed(digits).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "")} ${units[power]}`;
+    if (parseTrafficCalibration(value) === bytes) return value;
+  }
+  return `${bytes} B`;
+}

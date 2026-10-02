@@ -91,7 +91,7 @@
       "current": "Kalibrasi saat ini",
       "copyHint": "Kalibrasi disimpan saat perintah penerapan disalin.",
       "invalid": "Masukkan jumlah tidak negatif yang valid, misalnya 120 GB",
-      "description": "Masukkan lalu lintas yang sudah terpakai sebelum instal ulang, misalnya 120 GB. Jumlah ini ditambahkan ke pemakaian Agent saat ini hanya untuk tampilan dan peringatan; tidak dicatat ke riwayat atau tagihan. Isi 0 untuk menghapus."
+      "description": "Masukkan lalu lintas yang sudah terpakai sebelum instal ulang, misalnya 120 GB. Jumlah ini ditambahkan ke pemakaian Agent saat ini hanya untuk tampilan dan peringatan; tidak dicatat ke riwayat atau tagihan. Isi 0 untuk menghapus. Jika reset statistik jaringan bulanan diaktifkan, kalibrasi dihapus pada hari reset berikutnya sesuai zona waktu panel. Jika tidak, hapus secara manual."
     },
     "nodeTable": {
       "addNode": "Tambah Node",

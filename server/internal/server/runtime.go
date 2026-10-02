@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/komari-monitor/komari/database/accounts"
 	"github.com/komari-monitor/komari/database/auditlog"
+	"github.com/komari-monitor/komari/database/clients"
 	d_notification "github.com/komari-monitor/komari/database/notification"
 	"github.com/komari-monitor/komari/database/tasks"
 	"github.com/komari-monitor/komari/internal/config"
@@ -181,6 +182,13 @@ func registerScheduledWork() {
 	}
 	if err := scheduler.AddContextFunc("metrics:retention", "@every 1h", true, cleanupMetricStore); err != nil {
 		logger.ErrorArgs("server", "Failed to add metric retention scheduled task:", err)
+	}
+	if err := scheduler.AddContextFunc("traffic:calibration-reset", "@every 1m", true, func(context.Context) {
+		if err := clients.ResetTrafficCalibration(); err != nil {
+			logger.ErrorArgs("server", "Failed to reset traffic calibration:", err)
+		}
+	}); err != nil {
+		logger.ErrorArgs("server", "Failed to add traffic calibration reset task:", err)
 	}
 	if err := scheduler.AddFunc("notifier:traffic", "@every 1m", notifier.CheckTraffic); err != nil {
 		logger.ErrorArgs("server", "Failed to add traffic notification task:", err)

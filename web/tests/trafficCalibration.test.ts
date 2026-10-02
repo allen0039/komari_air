@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseTrafficCalibration, calibratedTrafficUsed } from "../src/utils/trafficCalibration.ts";
+import { parseTrafficCalibration, calibratedTrafficUsed, formatTrafficCalibration } from "../src/utils/trafficCalibration.ts";
 
 test("accepts fractional usage and rounds to a whole byte", () => {
   assert.equal(parseTrafficCalibration("71.95 GB"), 77255724237);
@@ -20,5 +20,13 @@ test("adds calibration once after selecting the quota direction", () => {
   for (const [type, used] of [["up", 100], ["down", 200], ["min", 100], ["max", 200], ["sum", 300]] as const) {
     assert.equal(calibratedTrafficUsed(100, 200, type, 700), used + 700);
     assert.equal(calibratedTrafficUsed(0, 0, type, 700), 700);
+  }
+});
+
+test("shows saved calibration in readable units without changing a byte", () => {
+  assert.equal(formatTrafficCalibration(76235669504), "71 GB");
+  assert.equal(formatTrafficCalibration(77255724237), "71.95 GB");
+  for (const bytes of [0, 1, 1023, 1024, 1025, 1024 ** 3 - 1, 76235669504, 77255724237, 1024 ** 4, Number.MAX_SAFE_INTEGER]) {
+    assert.equal(parseTrafficCalibration(formatTrafficCalibration(bytes)), bytes);
   }
 });

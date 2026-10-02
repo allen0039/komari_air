@@ -5,7 +5,7 @@ import { useRPC2Call } from "@/contexts/RPC2Context";
 import { useNodeDetails } from "@/contexts/NodeDetailsContext";
 import { useNodeList } from "@/contexts/NodeListContext";
 import { formatBytes } from "@/utils/unitHelper";
-import { parseTrafficCalibration } from "@/utils/trafficCalibration";
+import { formatTrafficCalibration, parseTrafficCalibration } from "@/utils/trafficCalibration";
 
 export type TrafficCalibrationHandle = {
   saveIfChanged: () => Promise<void>;
@@ -22,12 +22,12 @@ export const TrafficCalibrationField = React.forwardRef<TrafficCalibrationHandle
     const { call } = useRPC2Call();
     const { refresh } = useNodeDetails();
     const nodeList = useNodeList(false);
-    const [value, setValue] = React.useState(`${initialBytes || 0} B`);
+    const [value, setValue] = React.useState(formatTrafficCalibration(initialBytes || 0));
     const savedBytes = React.useRef(initialBytes || 0);
 
     React.useEffect(() => {
       savedBytes.current = initialBytes || 0;
-      setValue(`${initialBytes || 0} B`);
+      setValue(formatTrafficCalibration(initialBytes || 0));
     }, [initialBytes, uuid]);
 
     React.useImperativeHandle(ref, () => ({
@@ -58,7 +58,7 @@ export const TrafficCalibrationField = React.forwardRef<TrafficCalibrationHandle
           {t("admin.trafficCalibration.current", "当前校准值")}: {formatBytes(savedBytes.current)} ·{" "}
           {t(
             "admin.trafficCalibration.description",
-            "填写重装前已用的流量，如 120 GB。此值加到当前 Agent 用量，仅用于显示和流量提醒；不写入历史流量或计费。设置为 0 可清除。",
+            "填写重装前已用的流量，如 120 GB。此值加到当前 Agent 用量，仅用于显示和流量提醒；不写入历史流量或计费。设置为 0 可清除。启用网络统计月重置后，校准值按面板时区在下次重置日自动清零；未启用时需手动清除。",
           )}
         </Text>
       </div>

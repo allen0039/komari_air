@@ -14,6 +14,7 @@ import (
 	"github.com/komari-monitor/komari/utils"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 func DeleteClient(clientUuid string) error {
@@ -207,6 +208,9 @@ func GetClientTokenByUUID(uuid string) (token string, err error) {
 
 func GetAllClientBasicInfo() (clients []models.Client, err error) {
 	db := dbcore.GetDBInstance()
+	if err = resetTrafficCalibration(db, time.Now()); err != nil {
+		return nil, err
+	}
 	err = db.Find(&clients).Error
 	if err != nil {
 		return nil, err
@@ -215,7 +219,10 @@ func GetAllClientBasicInfo() (clients []models.Client, err error) {
 }
 
 func SaveClient(updates map[string]interface{}) error {
-	db := dbcore.GetDBInstance()
+	return saveClient(dbcore.GetDBInstance(), updates, time.Now())
+}
+
+func saveClient(db *gorm.DB, updates map[string]interface{}, now time.Time) error {
 	clientUUID, ok := updates["uuid"].(string)
 	if !ok || clientUUID == "" {
 		return fmt.Errorf("invalid client UUID")
@@ -233,12 +240,20 @@ func SaveClient(updates map[string]interface{}) error {
 			}
 		}
 	}
+	if _, exists := updates["traffic_calibration_at"]; exists {
+		return fmt.Errorf("traffic_calibration_at is managed by the server")
+	}
 	if v, exists := updates["traffic_used_offset"]; exists {
 		value, ok := v.(float64)
 		if !ok || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || value > 9007199254740991 || math.Trunc(value) != value {
 			return fmt.Errorf("traffic_used_offset must be a non-negative integer within the JSON safe integer range")
 		}
 		updates["traffic_used_offset"] = int64(value)
+		if value > 0 {
+			updates["traffic_calibration_at"] = now.UTC()
+		} else {
+			updates["traffic_calibration_at"] = nil
+		}
 	}
 	if value, exists := updates["currency"]; exists {
 		currency, ok := value.(string)
@@ -292,7 +307,7 @@ func SaveClient(updates map[string]interface{}) error {
 		}
 	}
 
-	updates["updated_at"] = time.Now().UTC()
+	updates["updated_at"] = now.UTC()
 
 	err := db.Model(&models.Client{}).Where("uuid = ?", clientUUID).Updates(updates).Error
 	if err != nil {
