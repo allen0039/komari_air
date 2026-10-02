@@ -86,6 +86,13 @@
       "trafficLimitType_up": "Unggah Saja",
       "waiting": "Menunggu..."
     },
+    "trafficCalibration": {
+      "label": "Kalibrasi lalu lintas terpakai",
+      "current": "Kalibrasi saat ini",
+      "copyHint": "Kalibrasi disimpan saat perintah penerapan disalin.",
+      "invalid": "Masukkan jumlah tidak negatif yang valid, misalnya 120 GB",
+      "description": "Masukkan lalu lintas yang sudah terpakai sebelum instal ulang, misalnya 120 GB. Jumlah ini ditambahkan ke pemakaian Agent saat ini hanya untuk tampilan dan peringatan; tidak dicatat ke riwayat atau tagihan. Isi 0 untuk menghapus."
+    },
     "nodeTable": {
       "addNode": "Tambah Node",
       "autoDiscovery": {
@@ -713,6 +720,7 @@
     "totalDownload": "Total Unduhan",
     "totalNodes": "Total {{total}} server, {{online}} Hidup",
     "totalTraffic": "Total Lalu Lintas",
+    "calibratedUsed": "Lalu lintas terpakai (terkalibrasi)",
     "totalUpload": "Total Unggahan",
     "uptime": "Waktu Aktif",
     "virtualization": "Virtualisasi"

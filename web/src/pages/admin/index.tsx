@@ -86,6 +86,7 @@ import { SelectOrInput } from "@/components/ui/select-or-input";
 import { COMMON_CURRENCIES, normalizeCurrencyInput } from "@/utils/currency";
 import { useRPC2Call } from "@/contexts/RPC2Context";
 import { copyText } from "@/utils/clipboard";
+import { TrafficCalibrationField, type TrafficCalibrationHandle } from "@/components/admin/TrafficCalibrationField";
 
 const NodeDetailsPage = () => {
   return (
@@ -1553,6 +1554,7 @@ function AgentConfigButton({ node }: { node: NodeDetail }) {
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const calibrationRef = React.useRef<TrafficCalibrationHandle>(null);
   const [state, setState] = React.useState<ManagedAgentConfigState | null>(
     null,
   );
@@ -1628,6 +1630,7 @@ function AgentConfigButton({ node }: { node: NodeDetail }) {
     }
     setSaving(true);
     try {
+      await calibrationRef.current?.saveIfChanged();
       const next = await call<any, ManagedAgentConfigState>(
         "admin:updateAgentConfig",
         { uuid: node.uuid, config: form },
@@ -1978,6 +1981,12 @@ function AgentConfigButton({ node }: { node: NodeDetail }) {
               </div>
             </div>
 
+            <TrafficCalibrationField
+              ref={calibrationRef}
+              uuid={node.uuid}
+              initialBytes={node.traffic_used_offset ?? 0}
+            />
+
             <Text size="1" color="gray">
               {t(
                 "admin.agentConfig.installOnlyHint",
@@ -2100,6 +2109,7 @@ function GenerateCommandButton({
 }) {
   const [selectedPlatform, setSelectedPlatform] =
     React.useState<Platform>("linux");
+  const calibrationRef = React.useRef<TrafficCalibrationHandle>(null);
   const [installOptions, setInstallOptions] = React.useState<InstallOptions>({
     disableAutoUpdate: false,
     ignoreUnsafeCert: false,
@@ -2283,6 +2293,12 @@ function GenerateCommandButton({
   };
 
   const copyToClipboard = async (text: string) => {
+    try {
+      await calibrationRef.current?.saveIfChanged();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+      return;
+    }
     const ok = await copyText(text);
     if (ok) {
       toast.success(t("copy_success", "已复制到剪贴板"));
@@ -2856,6 +2872,14 @@ function GenerateCommandButton({
               )}
             </Flex>
           </Flex>
+          <TrafficCalibrationField
+            ref={calibrationRef}
+            uuid={node.uuid}
+            initialBytes={node.traffic_used_offset ?? 0}
+          />
+          <Text size="1" color="gray">
+            {t("admin.trafficCalibration.copyHint", "复制部署指令时会保存校准值。")}
+          </Text>
           <Flex direction="column" gap="2">
             <label className="text-base font-bold">
               {t("admin.nodeTable.generatedCommand", "生成的指令")}

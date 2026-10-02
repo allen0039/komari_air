@@ -86,6 +86,13 @@
       "trafficLimitType_up": "Upload Only",
       "waiting": "wait..."
     },
+    "trafficCalibration": {
+      "label": "Used traffic calibration",
+      "current": "Current calibration",
+      "copyHint": "The calibration is saved when you copy the deployment command.",
+      "invalid": "Enter a valid non-negative amount, such as 120 GB",
+      "description": "Enter traffic already used before reinstalling, such as 120 GB. This amount is added to the Agent's current usage for display and traffic alerts only; it is not written to traffic history or billing. Enter 0 to clear it."
+    },
     "nodeTable": {
       "addNode": "Add",
       "autoDiscovery": {
@@ -716,6 +723,7 @@
     "totalDownload": "Total Download",
     "totalNodes": "{{total}} servers total, {{online}} online",
     "totalTraffic": "Traffic",
+    "calibratedUsed": "Used traffic (calibrated)",
     "totalUpload": "Total Upload",
     "uptime": "Uptime",
     "virtualization": "Virtualization"

@@ -7,6 +7,7 @@ import {
 import { useLiveData } from "@/contexts/LiveDataContext";
 import { formatUptime } from "./Node";
 import { formatBytes } from "@/utils/unitHelper";
+import { calibratedTrafficUsed } from "@/utils/trafficCalibration";
 import { Flex, Text, Card } from "@radix-ui/themes";
 import type { Record as LiveRecord } from "@/types/LiveData";
 
@@ -89,6 +90,17 @@ export const DetailsGrid = ({
               currentRecord?.network.totalDown || 0
             )}`}
         />
+        {(node?.traffic_used_offset ?? 0) > 0 && (
+          <UpDownStack
+            up={t("nodeCard.calibratedUsed", "已用流量（含校准）")}
+            down={formatBytes(calibratedTrafficUsed(
+              currentRecord?.network.totalUp || 0,
+              currentRecord?.network.totalDown || 0,
+              node?.traffic_limit_type ?? "sum",
+              node?.traffic_used_offset ?? 0,
+            ))}
+          />
+        )}
         <UpDownStack
           className="km-details-item md:w-70 w-full flex-[0_0_calc(50%-0.5rem)]"
           up={t("nodeCard.ram")}

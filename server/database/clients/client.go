@@ -233,6 +233,13 @@ func SaveClient(updates map[string]interface{}) error {
 			}
 		}
 	}
+	if v, exists := updates["traffic_used_offset"]; exists {
+		value, ok := v.(float64)
+		if !ok || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || value > 9007199254740991 || math.Trunc(value) != value {
+			return fmt.Errorf("traffic_used_offset must be a non-negative integer within the JSON safe integer range")
+		}
+		updates["traffic_used_offset"] = int64(value)
+	}
 	if value, exists := updates["currency"]; exists {
 		currency, ok := value.(string)
 		if !ok {

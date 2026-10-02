@@ -86,6 +86,13 @@
       "trafficLimitType_up": "僅上傳",
       "waiting": "等待..."
     },
+    "trafficCalibration": {
+      "label": "已用流量校準值",
+      "current": "目前校準值",
+      "copyHint": "複製部署指令時會儲存校準值。",
+      "invalid": "請輸入有效的非負流量，例如 120 GB",
+      "description": "填寫重裝前已用的流量，例如 120 GB。此值加到 Agent 目前用量，僅用於顯示和流量提醒；不寫入歷史流量或計費。設為 0 可清除。"
+    },
     "nodeTable": {
       "addNode": "新增節點",
       "autoDiscovery": {
@@ -713,6 +720,7 @@
     "totalDownload": "總下載",
     "totalNodes": "共 {{total}} 個伺服器，{{online}} 個線上",
     "totalTraffic": "總流量",
+    "calibratedUsed": "已用流量（含校準）",
     "totalUpload": "總上傳",
     "uptime": "運作時間",
     "virtualization": "虛擬化"

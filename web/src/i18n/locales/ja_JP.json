@@ -86,6 +86,13 @@
       "trafficLimitType_up": "アップロードのみ",
       "waiting": "待機中..."
     },
+    "trafficCalibration": {
+      "label": "使用済み通信量の補正値",
+      "current": "現在の補正値",
+      "copyHint": "デプロイコマンドをコピーすると補正値が保存されます。",
+      "invalid": "120 GB などの有効な非負の通信量を入力してください",
+      "description": "再インストール前に使用した通信量を入力します。Agent の現在の使用量に加算し、表示と通信量通知のみに使用します。履歴や請求には記録されません。0 で解除できます。"
+    },
     "nodeTable": {
       "addNode": "ノードを追加",
       "autoDiscovery": {
@@ -713,6 +720,7 @@
     "totalDownload": "総ダウンロード",
     "totalNodes": "合計 {{total}} 台のサーバー、{{online}} 台がオンライン",
     "totalTraffic": "総トラフィック",
+    "calibratedUsed": "使用済み通信量（補正込み）",
     "totalUpload": "総アップロード",
     "uptime": "稼働時間",
     "virtualization": "仮想化"

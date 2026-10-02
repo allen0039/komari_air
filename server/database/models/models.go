@@ -42,6 +42,8 @@ type Client struct {
 	TrafficLimitType string     `json:"traffic_limit_type" gorm:"type:varchar(10);default:'max'"` // 流量阈值类型：sum max min up down
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
+
+	TrafficUsedOffset int64 `json:"traffic_used_offset" gorm:"type:bigint;default:0"` // 展示和提醒用的已用流量校准值，不计入采样流量
 }
 
 // AgentConfig stores desired and reported managed runtime configuration for one agent.

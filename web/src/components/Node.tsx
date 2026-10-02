@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import Tips from "./ui/tips";
 
 import { formatBytes } from "@/utils/unitHelper";
+import { calibratedTrafficUsed } from "@/utils/trafficCalibration";
 
 /** 格式化秒*/
 export function formatUptime(seconds: number, t: TFunction): string {
@@ -69,6 +70,13 @@ const Node = React.memo(
   const downloadSpeed = formatBytes(liveData.network.down);
   const totalUpload = formatBytes(liveData.network.totalUp);
   const totalDownload = formatBytes(liveData.network.totalDown);
+  const trafficType = basic.traffic_limit_type ?? "sum";
+  const calibratedUsed = calibratedTrafficUsed(
+    liveData.network.totalUp,
+    liveData.network.totalDown,
+    trafficType,
+    basic.traffic_used_offset,
+  );
   //const totalTraffic = formatBytes(liveData.network.totalUp + liveData.network.totalDown);
   return (
     <Card
@@ -199,6 +207,7 @@ const Node = React.memo(
                   liveData.network.totalDown,
                   basic.traffic_limit,
                   basic.traffic_limit_type ?? "sum",
+                  basic.traffic_used_offset,
                 )}
                 max={Infinity}
               />
@@ -213,15 +222,25 @@ const Node = React.memo(
                   ({formatBytes(basic.traffic_limit)})
                 </Text>
               </Flex>
+              <Text size="1" color="gray">
+                {t("nodeCard.calibratedUsed", "已用流量（含校准）")}: {formatBytes(calibratedUsed)}
+              </Text>
             </Flex>
           ) : (
-            <Flex justify="between" hidden={isMobile}>
-              <Text size="2" color="gray">
-                {t("nodeCard.totalTraffic")}
-              </Text>
-              <Text size="2">
-                ↑ {totalUpload} ↓ {totalDownload}
-              </Text>
+            <Flex direction="column" hidden={isMobile}>
+              <Flex justify="between">
+                <Text size="2" color="gray">
+                  {t("nodeCard.totalTraffic")}
+                </Text>
+                <Text size="2">
+                  ↑ {totalUpload} ↓ {totalDownload}
+                </Text>
+              </Flex>
+              {basic.traffic_used_offset > 0 && (
+                <Text size="1" color="gray">
+                  {t("nodeCard.calibratedUsed", "已用流量（含校准）")}: {formatBytes(calibratedUsed)}
+                </Text>
+              )}
             </Flex>
           )}
 
@@ -257,8 +276,14 @@ const Node = React.memo(
                 liveData.network.totalDown,
                 basic.traffic_limit,
                 basic.traffic_limit_type ?? "sum",
+                basic.traffic_used_offset,
               )}
             />
+          )}
+          {basic.traffic_used_offset > 0 && isMobile && (
+            <Text size="1" color="gray">
+              {t("nodeCard.calibratedUsed", "已用流量（含校准）")}: {formatBytes(calibratedUsed)}
+            </Text>
           )}
           <Flex justify="between" hidden={isMobile}>
             <Text size="2" color="gray">
@@ -363,20 +388,8 @@ function getTrafficPercentage(
   totalDown: number,
   limit: number,
   type: "max" | "min" | "sum" | "up" | "down",
+  offset = 0,
 ) {
   if (limit === 0) return 0;
-  switch (type) {
-    case "max":
-      return (Math.max(totalUp, totalDown) / limit) * 100;
-    case "min":
-      return (Math.min(totalUp, totalDown) / limit) * 100;
-    case "sum":
-      return ((totalUp + totalDown) / limit) * 100;
-    case "up":
-      return (totalUp / limit) * 100;
-    case "down":
-      return (totalDown / limit) * 100;
-    default:
-      return 0;
-  }
+  return (calibratedTrafficUsed(totalUp, totalDown, type, offset) / limit) * 100;
 }
