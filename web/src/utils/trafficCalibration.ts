@@ -6,7 +6,8 @@ export function parseTrafficCalibration(input: string): number | null {
   const power = "BKMGTP".indexOf(unit);
   if (power < 0) return null;
   const bytes = Number(match[1]) * 1024 ** power;
-  return Number.isSafeInteger(bytes) && bytes >= 0 ? bytes : null;
+  if (!Number.isFinite(bytes) || bytes < 0 || bytes > Number.MAX_SAFE_INTEGER) return null;
+  return Math.round(bytes);
 }
 
 export function trafficUsedByType(

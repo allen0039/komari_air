@@ -1,6 +1,7 @@
 package public
 
 import (
+	"encoding/json"
 	"io"
 	"net/http/httptest"
 	"os"
@@ -159,5 +160,60 @@ func TestStaticRestrictedDoesNotServeCustomAssetOverride(t *testing.T) {
 	}
 	if strings.Contains(string(indexBody), `vite-plugin-pwa:register-sw`) {
 		t.Fatal("restricted index still registers a service worker")
+	}
+}
+
+func TestBundledThemeUpgradePreservesSameNewerAndCustomVersions(t *testing.T) {
+	for _, tc := range []struct {
+		name, version, short string
+		replaced             bool
+	}{
+		{"older", "0.0.1", PreferredTheme, true},
+		{"newer", "999.0.0", PreferredTheme, false},
+		{"custom", "custom", PreferredTheme, false},
+		{"foreign", "0.0.1", "other-theme", false},
+		{"same", "", PreferredTheme, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Chdir(t.TempDir())
+			if err := InstallBundledThemes(); err != nil {
+				t.Fatal(err)
+			}
+			dir := filepath.Join(DataDir, ThemesDir, PreferredTheme)
+			manifestPath := filepath.Join(dir, "komari-theme.json")
+			data, err := os.ReadFile(manifestPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var manifest themeVersionManifest
+			if err := json.Unmarshal(data, &manifest); err != nil {
+				t.Fatal(err)
+			}
+			if tc.version != "" {
+				manifest.Version = tc.version
+			}
+			manifest.Short = tc.short
+			data, _ = json.Marshal(manifest)
+			if err := os.WriteFile(manifestPath, data, 0644); err != nil {
+				t.Fatal(err)
+			}
+			marker := filepath.Join(dir, "old-file")
+			if err := os.WriteFile(marker, []byte("old"), 0644); err != nil {
+				t.Fatal(err)
+			}
+			if err := InstallBundledThemes(); err != nil {
+				t.Fatal(err)
+			}
+			_, err = os.Stat(marker)
+			if tc.replaced && !os.IsNotExist(err) {
+				t.Fatal("old theme was not replaced")
+			}
+			if !tc.replaced && err != nil {
+				t.Fatal("installed theme should be preserved")
+			}
+			if _, err := os.Stat(filepath.Join(dir, "dist", IndexFile)); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }
