@@ -45,6 +45,7 @@ export type NodeBasicInfo = {
   traffic_limit: number;
   /** 已用流量校准值，仅参与展示和提醒 */
   traffic_used_offset: number;
+  traffic_calibration_baseline?: number | null;
   /** 流量阈值类型 */
   traffic_limit_type: undefined | "sum" | "max" | "min" | "up" | "down";
   /** 过期时间 */
@@ -135,6 +136,7 @@ export const NodeListProvider: React.FC<{ children: React.ReactNode }> = ({
           group: n.group ?? "",
           traffic_limit: n.traffic_limit ?? 0,
           traffic_used_offset: n.traffic_used_offset ?? 0,
+          traffic_calibration_baseline: n.traffic_calibration_baseline,
           traffic_limit_type: n.traffic_limit_type,
           expired_at: n.expired_at ?? "",
           created_at: n.created_at ?? "",

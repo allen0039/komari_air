@@ -63,7 +63,7 @@ func CheckTraffic() {
 		}
 
 		// 计算不同类型的使用值
-		used := calibratedUsedByType(strings.ToLower(c.TrafficLimitType), r.Network.TotalUp, r.Network.TotalDown, c.TrafficUsedOffset)
+		used := clients.CalibratedTrafficUsed(c, r.Network.TotalUp, r.Network.TotalDown)
 		if used <= 0 {
 			continue
 		}
@@ -105,40 +105,6 @@ func CheckTraffic() {
 			})
 		}
 	}
-}
-
-func computeUsedByType(t string, up, down int64) int64 {
-	switch t {
-	case "up":
-		return up
-	case "down":
-		return down
-	case "sum":
-		return up + down
-	case "min":
-		if up < down {
-			return up
-		}
-		return down
-	case "max":
-		fallthrough
-	default:
-		if up > down {
-			return up
-		}
-		return down
-	}
-}
-
-func calibratedUsedByType(t string, up, down, offset int64) int64 {
-	used := computeUsedByType(t, up, down)
-	if offset <= 0 {
-		return used
-	}
-	if used > math.MaxInt64-offset {
-		return math.MaxInt64
-	}
-	return used + offset
 }
 
 func humanBytes(b int64) string {

@@ -12,6 +12,7 @@ import (
 	"github.com/komari-monitor/komari/database/models"
 	"github.com/komari-monitor/komari/database/tasks"
 	"github.com/komari-monitor/komari/utils"
+	agent_runtime "github.com/komari-monitor/komari/web/agent"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -240,8 +241,10 @@ func saveClient(db *gorm.DB, updates map[string]interface{}, now time.Time) erro
 			}
 		}
 	}
-	if _, exists := updates["traffic_calibration_at"]; exists {
-		return fmt.Errorf("traffic_calibration_at is managed by the server")
+	for _, key := range []string{"traffic_calibration_at", "traffic_calibration_baseline"} {
+		if _, exists := updates[key]; exists {
+			return fmt.Errorf("%s is managed by the server", key)
+		}
 	}
 	if v, exists := updates["traffic_used_offset"]; exists {
 		value, ok := v.(float64)
@@ -249,7 +252,19 @@ func saveClient(db *gorm.DB, updates map[string]interface{}, now time.Time) erro
 			return fmt.Errorf("traffic_used_offset must be a non-negative integer within the JSON safe integer range")
 		}
 		updates["traffic_used_offset"] = int64(value)
+		updates["traffic_calibration_baseline"] = nil
 		if value > 0 {
+			var client models.Client
+			if err := db.Select("uuid", "traffic_limit_type").Where("uuid = ?", clientUUID).First(&client).Error; err != nil {
+				return err
+			}
+			trafficType := client.TrafficLimitType
+			if next, ok := updates["traffic_limit_type"].(string); ok {
+				trafficType = next
+			}
+			if report := agent_runtime.GetLatestReport()[clientUUID]; report != nil {
+				updates["traffic_calibration_baseline"] = TrafficUsedByType(trafficType, report.Network.TotalUp, report.Network.TotalDown)
+			}
 			updates["traffic_calibration_at"] = now.UTC()
 		} else {
 			updates["traffic_calibration_at"] = nil

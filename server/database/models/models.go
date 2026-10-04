@@ -43,8 +43,9 @@ type Client struct {
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
 
-	TrafficCalibrationAt *time.Time `json:"-"`                                                // 保存校准值的时间，独立于 Agent 基础信息更新时间
-	TrafficUsedOffset    int64      `json:"traffic_used_offset" gorm:"type:bigint;default:0"` // 展示和提醒用的已用流量校准值，不计入采样流量
+	TrafficCalibrationBaseline *int64     `json:"traffic_calibration_baseline" gorm:"type:bigint"`  // 保存时按统计类型选取的 Agent 计数；nil 表示等待首次上报
+	TrafficCalibrationAt       *time.Time `json:"-"`                                                // 保存校准值的时间，独立于 Agent 基础信息更新时间
+	TrafficUsedOffset          int64      `json:"traffic_used_offset" gorm:"type:bigint;default:0"` // 用户指定的已用总量（保留旧 API 字段名），不计入采样流量
 }
 
 // AgentConfig stores desired and reported managed runtime configuration for one agent.

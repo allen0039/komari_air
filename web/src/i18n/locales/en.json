@@ -91,7 +91,7 @@
       "current": "Current calibration",
       "copyHint": "The calibration is saved when you copy the deployment command.",
       "invalid": "Enter a valid non-negative amount, such as 120 GB",
-      "description": "Enter traffic already used before reinstalling, such as 120 GB. This amount is added to the Agent's current usage for display and traffic alerts only; it is not written to traffic history or billing. Enter 0 to clear it. When monthly network rotation is enabled, calibration clears on the next reset day in the panel time zone. Otherwise, clear it manually."
+      "description": "Enter the total traffic already used, such as 120 GB. Saving sets current usage to this value and counts only subsequent traffic for display and alerts; historical traffic and billing are unchanged. Set to 0 to clear. When monthly network rotation is enabled, calibration clears on the next reset day in the panel time zone. Otherwise, clear it manually."
     },
     "nodeTable": {
       "addNode": "Add",

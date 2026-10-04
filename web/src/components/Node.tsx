@@ -76,6 +76,7 @@ const Node = React.memo(
     liveData.network.totalDown,
     trafficType,
     basic.traffic_used_offset,
+    basic.traffic_calibration_baseline,
   );
   //const totalTraffic = formatBytes(liveData.network.totalUp + liveData.network.totalDown);
   return (
@@ -208,6 +209,7 @@ const Node = React.memo(
                   basic.traffic_limit,
                   basic.traffic_limit_type ?? "sum",
                   basic.traffic_used_offset,
+                  basic.traffic_calibration_baseline,
                 )}
                 max={Infinity}
               />
@@ -277,6 +279,7 @@ const Node = React.memo(
                 basic.traffic_limit,
                 basic.traffic_limit_type ?? "sum",
                 basic.traffic_used_offset,
+                basic.traffic_calibration_baseline,
               )}
             />
           )}
@@ -389,7 +392,8 @@ function getTrafficPercentage(
   limit: number,
   type: "max" | "min" | "sum" | "up" | "down",
   offset = 0,
+  baseline?: number | null,
 ) {
   if (limit === 0) return 0;
-  return (calibratedTrafficUsed(totalUp, totalDown, type, offset) / limit) * 100;
+  return (calibratedTrafficUsed(totalUp, totalDown, type, offset, baseline) / limit) * 100;
 }

@@ -98,6 +98,7 @@ export const DetailsGrid = ({
               currentRecord?.network.totalDown || 0,
               node?.traffic_limit_type ?? "sum",
               node?.traffic_used_offset ?? 0,
+              node?.traffic_calibration_baseline,
             ))}
           />
         )}

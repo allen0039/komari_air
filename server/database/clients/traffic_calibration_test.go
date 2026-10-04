@@ -3,10 +3,13 @@ package clients
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
 	"github.com/komari-monitor/komari/database/models"
+	v2 "github.com/komari-monitor/komari/protocol/v2"
+	agent_runtime "github.com/komari-monitor/komari/web/agent"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -88,7 +91,7 @@ func TestCalibrationPersistsUntilNextCycleAndCatchesUpAfterDowntime(t *testing.T
 	if err := resetTrafficCalibration(db, before.Add(time.Second)); err != nil {
 		t.Fatal(err)
 	}
-	if got := load(); got.TrafficUsedOffset != 0 || got.TrafficCalibrationAt != nil || got.Price != client.Price || got.TrafficLimit != client.TrafficLimit {
+	if got := load(); got.TrafficUsedOffset != 0 || got.TrafficCalibrationAt != nil || got.TrafficCalibrationBaseline != nil || got.Price != client.Price || got.TrafficLimit != client.TrafficLimit {
 		t.Fatal("incorrect reset", got)
 	}
 	if err := saveClient(db, map[string]interface{}{"uuid": client.UUID, "traffic_used_offset": float64(123)}, saved); err != nil {
@@ -154,8 +157,10 @@ func TestClearingCalibrationAndProtectingTimestamp(t *testing.T) {
 	if err := db.Create(&models.Client{UUID: "node", Token: "token", TrafficUsedOffset: 1, TrafficCalibrationAt: &now}).Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := saveClient(db, map[string]interface{}{"uuid": "node", "traffic_calibration_at": now}, now); err == nil {
-		t.Fatal("client can overwrite server timestamp")
+	for _, key := range []string{"traffic_calibration_at", "traffic_calibration_baseline"} {
+		if err := saveClient(db, map[string]interface{}{"uuid": "node", key: now}, now); err == nil {
+			t.Fatal("client can overwrite server calibration state", key)
+		}
 	}
 	if err := saveClient(db, map[string]interface{}{"uuid": "node", "traffic_used_offset": float64(0)}, now); err != nil {
 		t.Fatal(err)
@@ -173,5 +178,123 @@ func TestClearingCalibrationAndProtectingTimestamp(t *testing.T) {
 	json.Unmarshal(data, &fields)
 	if _, ok := fields["traffic_calibration_at"]; ok {
 		t.Fatal("internal timestamp exposed")
+	}
+}
+
+func TestSavedTrafficTargetOverridesCounterAndContinues(t *testing.T) {
+	for _, tc := range []struct {
+		kind             string
+		baseline, growth int64
+	}{
+		{"up", 100, 10}, {"down", 200, 10}, {"sum", 300, 20}, {"min", 100, 10}, {"max", 200, 10},
+	} {
+		t.Run(tc.kind, func(t *testing.T) {
+			db := calibrationDB(t)
+			id := t.Name()
+			now := time.Now()
+			if err := db.Create(&models.Client{UUID: id, Token: id, TrafficLimitType: tc.kind}).Error; err != nil {
+				t.Fatal(err)
+			}
+			agent_runtime.RecordReport(v2.Report{UUID: id, UpdatedAt: now, Network: v2.NetworkReport{TotalUp: 100, TotalDown: 200}})
+			t.Cleanup(func() { agent_runtime.DeleteLatestReport(id) })
+			if err := saveClient(db, map[string]interface{}{"uuid": id, "traffic_used_offset": float64(168)}, now); err != nil {
+				t.Fatal(err)
+			}
+			load := func() models.Client {
+				t.Helper()
+				var c models.Client
+				if err := db.First(&c, "uuid = ?", id).Error; err != nil {
+					t.Fatal(err)
+				}
+				return c
+			}
+			c := load()
+			if c.TrafficCalibrationBaseline == nil || *c.TrafficCalibrationBaseline != tc.baseline {
+				t.Fatal("incorrect saved baseline", c)
+			}
+			if got := CalibratedTrafficUsed(c, 100, 200); got != 168 {
+				t.Fatal("entered total was added instead of replacing usage", got)
+			}
+			if got := CalibratedTrafficUsed(c, 110, 210); got != 168+tc.growth {
+				t.Fatal("new traffic not counted", got)
+			}
+			// A panel restart or listing must keep the original saved baseline.
+			if err := resetTrafficCalibration(db, now.Add(time.Minute)); err != nil {
+				t.Fatal(err)
+			}
+			c = load()
+			if *c.TrafficCalibrationBaseline != tc.baseline {
+				t.Fatal("baseline changed on read")
+			}
+			agent_runtime.RecordReport(v2.Report{UUID: id, UpdatedAt: now.Add(time.Second), Network: v2.NetworkReport{TotalUp: 110, TotalDown: 210}})
+			// Re-entering the same total must establish a new snapshot rather than silently doing nothing.
+			if err := saveClient(db, map[string]interface{}{"uuid": id, "traffic_used_offset": float64(168)}, now.Add(time.Second)); err != nil {
+				t.Fatal(err)
+			}
+			c = load()
+			if got := CalibratedTrafficUsed(c, 110, 210); got != 168 {
+				t.Fatal("same-value recalibration failed", got)
+			}
+			if got := CalibratedTrafficUsed(c, 120, 220); got != 168+tc.growth {
+				t.Fatal("traffic after recalibration incorrect", got)
+			}
+			// Neither directional samples nor history are rewritten by calibration.
+			report := agent_runtime.GetLatestReport()[id]
+			if report.Network.TotalUp != 110 || report.Network.TotalDown != 210 {
+				t.Fatal("raw report changed")
+			}
+		})
+	}
+}
+
+func TestPendingAndLegacyTargetsBindToFirstAvailableReport(t *testing.T) {
+	for _, legacy := range []bool{false, true} {
+		t.Run(fmt.Sprint(legacy), func(t *testing.T) {
+			db := calibrationDB(t)
+			id := t.Name()
+			now := time.Now()
+			c := models.Client{UUID: id, Token: id, TrafficLimitType: "sum"}
+			if legacy {
+				c.TrafficUsedOffset = 168
+				c.TrafficCalibrationAt = &now
+			}
+			if err := db.Create(&c).Error; err != nil {
+				t.Fatal(err)
+			}
+			if !legacy {
+				if err := saveClient(db, map[string]interface{}{"uuid": id, "traffic_used_offset": float64(168)}, now); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var pending models.Client
+			db.First(&pending, "uuid = ?", id)
+			if got := CalibratedTrafficUsed(pending, 100, 200); got != 168 {
+				t.Fatal("pending target double counted", got)
+			}
+			agent_runtime.RecordReport(v2.Report{UUID: id, UpdatedAt: now, Network: v2.NetworkReport{TotalUp: 100, TotalDown: 200}})
+			t.Cleanup(func() { agent_runtime.DeleteLatestReport(id) })
+			if err := resetTrafficCalibration(db, now.Add(time.Second)); err != nil {
+				t.Fatal(err)
+			}
+			var bound models.Client
+			db.First(&bound, "uuid = ?", id)
+			if bound.TrafficCalibrationBaseline == nil || *bound.TrafficCalibrationBaseline != 300 {
+				t.Fatal("first report was not anchored")
+			}
+			if got := CalibratedTrafficUsed(bound, 100, 200); got != 168 {
+				t.Fatal("legacy value double counted", got)
+			}
+			if got := CalibratedTrafficUsed(bound, 110, 210); got != 188 {
+				t.Fatal("increment incorrect", got)
+			}
+		})
+	}
+}
+
+func TestCalibratedTrafficSaturatesWithoutOverflow(t *testing.T) {
+	baseline := int64(0)
+	c := models.Client{TrafficLimitType: "sum", TrafficUsedOffset: 168, TrafficCalibrationBaseline: &baseline}
+	if got := CalibratedTrafficUsed(c, math.MaxInt64, math.MaxInt64); got != math.MaxInt64 {
+		t.Fatal("overflow", got)
 	}
 }

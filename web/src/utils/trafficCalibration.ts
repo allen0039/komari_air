@@ -28,9 +28,14 @@ export function calibratedTrafficUsed(
   up: number,
   down: number,
   type: "max" | "min" | "sum" | "up" | "down",
-  offset: number,
+  target: number,
+  baseline?: number | null,
 ): number {
-  return trafficUsedByType(up, down, type) + Math.max(0, offset || 0);
+  const raw = trafficUsedByType(up, down, type);
+  if (target <= 0) return raw;
+  // Older panels supplied an additive offset without a baseline field.
+  if (baseline === undefined) return raw + target;
+  return target + (baseline === null ? 0 : Math.max(0, raw - baseline));
 }
 
 // Return a human-readable unit without losing bytes when the unchanged field is saved.
