@@ -84,6 +84,52 @@ sudo ./scripts/deploy.sh stop
 
 Agent 与主控独立版本化。`VERSION` 表示主控版本，`AGENT_VERSION` 表示镜像内置的稳定版 Agent。面板升级不会直接替换已有节点的 Agent；请在后台确认节点版本，并按需执行升级。
 
+### Agent 卸载
+
+在**安装 Agent 的 Linux 节点**上运行 [卸载脚本](scripts/uninstall-agent.sh)。脚本支持 systemd 系统服务、systemd 用户服务、OpenRC、OpenWrt/procd 和 Upstart；默认服务名为 `komari-agent`。安装目录优先从该服务的配置读取，系统服务未找到时使用 `/opt/komari`。
+
+一键下载并卸载：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/allen0039/komari_air/main/scripts/uninstall-agent.sh \
+  | sudo sh
+```
+
+也可以先下载脚本，预览清理内容后再执行：
+
+```bash
+curl -fsSLo uninstall-agent.sh https://raw.githubusercontent.com/allen0039/komari_air/main/scripts/uninstall-agent.sh
+sudo sh uninstall-agent.sh --dry-run
+sudo sh uninstall-agent.sh
+```
+
+脚本会停止服务、取消开机启动、移除服务定义，并清理 Agent 程序、`auto-discovery.json`、`managed-config.json`、`net_static.json`、相应临时文件和备份，以及 `agent.before-*` 等升级回滚副本。默认安装的已知 Agent 文件日志也会清理。目录中的主控程序、数据库和其他文件会保留；安装目录为空时才删除目录。遇到服务停止失败、程序仍在运行或目录不匹配等情况，脚本会中止并给出原因。
+
+安装时自定义过服务名或目录的，使用对应参数；服务名需明确指定，脚本只处理选中的服务。目录已能从服务识别时可以省略 `--install-dir`：
+
+```bash
+sudo sh uninstall-agent.sh --service-name my-agent --install-dir /srv/komari
+```
+
+通过普通用户安装的 systemd 用户服务，请以**原安装用户**运行，不加 `sudo`。默认目录为 `${XDG_DATA_HOME:-$HOME/.local/share}/komari`：
+
+```bash
+sh uninstall-agent.sh --user --dry-run
+sh uninstall-agent.sh --user
+```
+
+自行指定的外置 JSON 配置需要明确提供文件路径；外置受管配置对应 Agent 的 `AGENT_MANAGED_CONFIG` 环境变量。这些文件及其 `.tmp`、`.bak` 副本会一起清理，系统目录路径仍受脚本保护：
+
+```bash
+sudo sh uninstall-agent.sh \
+  --config-file /srv/komari-config/config.json \
+  --managed-config /srv/komari-config/managed-config.json
+```
+
+`--install-service-name` 是 `--service-name` 的兼容别名；运行 `sh uninstall-agent.sh --help` 查看全部选项。卸载会删除该节点本地保存的自动发现身份和流量统计，面板上的节点记录需在后台另行删除。系统 journal 历史日志会保留。
+
+此脚本不处理 Docker Agent、Windows、macOS 或 NixOS。Docker Agent 需移除对应容器并清理其持久化身份文件；Windows、macOS 按各自的服务管理方式卸载；NixOS 需从声明式配置移除服务并重新构建系统。
+
 ## 从源码构建
 
 需要 Node.js 22+、npm、Go 1.25+、`tar`、`zstd`，以及 SQLite 所需的 CGO 工具链。
@@ -106,6 +152,12 @@ npm run dev
 ```bash
 cd server && go test ./...
 cd ../web && npm run lint && npm run build
+```
+
+卸载脚本的模拟测试仅操作临时目录，用模拟服务命令验证清理范围和失败处理：
+
+```bash
+python3 scripts/tests/test_uninstall_agent.py
 ```
 
 ## 项目结构
