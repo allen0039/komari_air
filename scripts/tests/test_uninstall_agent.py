@@ -132,6 +132,15 @@ class UninstallTests(unittest.TestCase):
         self.files(); self.systemd(); self.run_script()
         self.assertFalse(self.agent.exists()); self.run_script()
 
+    def test_historical_backups_removed_and_notes_preserved(self):
+        names = ("agent.backup-20260922-1556", "agent.backup-1.gz", "agent.pre-air-redeploy",
+                 "agent.hardening.gz", "komari-agent.backup-1", "komari-agent.pre-custom",
+                 "komari-agent.hardening.gz")
+        for name in (*names, "agent.notes"):
+            (self.agent / name).write_text("fixture")
+        self.run_script()
+        self.assertEqual(sorted(p.name for p in self.agent.iterdir()), ["agent.notes"])
+
     def test_dry_run_makes_no_changes(self):
         self.files(); self.systemd()
         process = self.root / "proc/999999/exe"

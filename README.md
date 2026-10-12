@@ -103,7 +103,7 @@ sudo sh uninstall-agent.sh --dry-run
 sudo sh uninstall-agent.sh
 ```
 
-脚本会停止服务、取消开机启动、移除服务定义，并清理 Agent 程序、`auto-discovery.json`、`managed-config.json`、`net_static.json`、相应临时文件和备份，以及 `agent.before-*` 等升级回滚副本。默认安装的已知 Agent 文件日志也会清理。目录中的主控程序、数据库和其他文件会保留；安装目录为空时才删除目录。遇到服务停止失败、程序仍在运行或目录不匹配等情况，脚本会中止并给出原因。
+脚本会停止服务、取消开机启动、移除服务定义，并清理 Agent 程序、`auto-discovery.json`、`managed-config.json`、`net_static.json`、相应临时文件和备份，以及 `agent.before-*`、`agent.backup-*`、`agent.pre-*` 等升级回滚副本和 `agent.hardening.gz`。这些历史备份命名也支持 `komari-agent` 前缀。默认安装的已知 Agent 文件日志也会清理。目录中的主控程序、数据库和其他文件会保留；安装目录为空时才删除目录。遇到服务停止失败、程序仍在运行或目录不匹配等情况，脚本会中止并给出原因。
 
 安装时自定义过服务名或目录的，使用对应参数；服务名需明确指定，脚本只处理选中的服务。目录已能从服务识别时可以省略 `--install-dir`：
 

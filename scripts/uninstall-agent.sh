@@ -201,7 +201,9 @@ case "$service_kind" in
         run ctl stop "$service_name.service"
         run ctl disable "$service_name.service"
         remove_file "$service_file"
-        remove_file "$systemd_dir/$service_name.service"
+        if [ "$service_file" != "$systemd_dir/$service_name.service" ]; then
+            remove_file "$systemd_dir/$service_name.service"
+        fi
         if [ -e "$systemd_dir/$service_name.service.d" ] || [ -L "$systemd_dir/$service_name.service.d" ]; then
             run rm -rf -- "$systemd_dir/$service_name.service.d"
         fi
@@ -256,12 +258,14 @@ if [ -n "$pids" ]; then
 fi
 
 for basename in agent komari-agent .agent.new .agent.old .komari-agent.new .komari-agent.old \
+    agent.hardening.gz komari-agent.hardening.gz \
     auto-discovery.json managed-config.json managed-config.json.tmp managed-config.json.bak \
     net_static.json net_static.json.tmp net_static.json.bak; do
     remove_file "$install_dir/$basename"
 done
-for backup in "$install_dir"/agent.before-batch-update-* \
-    "$install_dir"/agent.before-* "$install_dir"/komari-agent.before-*; do
+for backup in "$install_dir"/agent.before-* "$install_dir"/komari-agent.before-* \
+    "$install_dir"/agent.backup-* "$install_dir"/komari-agent.backup-* \
+    "$install_dir"/agent.pre-* "$install_dir"/komari-agent.pre-*; do
     remove_file "$backup"
 done
 for extra in "$config_file" "$managed_file"; do
