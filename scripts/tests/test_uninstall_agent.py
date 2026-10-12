@@ -141,6 +141,17 @@ class UninstallTests(unittest.TestCase):
         self.run_script()
         self.assertEqual(sorted(p.name for p in self.agent.iterdir()), ["agent.notes"])
 
+    def test_service_backups_removed_without_active_unit(self):
+        names = (".before-komari-air-0.1.5", ".pre-air-redeploy", ".backup-1", ".bak")
+        for suffix in names:
+            Path(str(self.unit) + suffix).write_text(f"ExecStart={self.agent}/agent -t secret\n")
+        unrelated = Path(str(self.unit) + ".before-unrelated")
+        unrelated.write_text("ExecStart=/usr/bin/unrelated\n")
+        self.run_script()
+        for suffix in names:
+            self.assertFalse(Path(str(self.unit) + suffix).exists())
+        self.assertTrue(unrelated.exists())
+
     def test_dry_run_makes_no_changes(self):
         self.files(); self.systemd()
         process = self.root / "proc/999999/exe"
@@ -240,8 +251,12 @@ class UninstallTests(unittest.TestCase):
         self.agent = self.root / "user-data/komari"; self.agent.mkdir(parents=True); self.files()
         self.unit = self.root / "user-config/systemd/user/komari-agent.service"
         self.unit.parent.mkdir(parents=True); self.env["KOMARI_TEST_UNIT"] = str(self.unit); self.systemd()
+        system_backup = self.root / "etc/init.d/komari-agent.pre-test"
+        system_backup.parent.mkdir(parents=True)
+        system_backup.write_text(f"command={self.agent}/agent\n")
         self.run_script("--user")
         self.assertFalse(self.agent.exists())
+        self.assertTrue(system_backup.exists())
         self.assertTrue(all(c[1] == "--user" for c in self.calls() if c[0] == "systemctl"))
 
     def test_openrc_removes_all_runlevels(self):

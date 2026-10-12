@@ -103,7 +103,7 @@ sudo sh uninstall-agent.sh --dry-run
 sudo sh uninstall-agent.sh
 ```
 
-脚本会停止服务、取消开机启动、移除服务定义，并清理 Agent 程序、`auto-discovery.json`、`managed-config.json`、`net_static.json`、相应临时文件和备份，以及 `agent.before-*`、`agent.backup-*`、`agent.pre-*` 等升级回滚副本和 `agent.hardening.gz`。这些历史备份命名也支持 `komari-agent` 前缀。默认安装的已知 Agent 文件日志也会清理。目录中的主控程序、数据库和其他文件会保留；安装目录为空时才删除目录。遇到服务停止失败、程序仍在运行或目录不匹配等情况，脚本会中止并给出原因。
+脚本会停止服务、取消开机启动、移除服务定义，并清理 Agent 程序、`auto-discovery.json`、`managed-config.json`、`net_static.json`、相应临时文件和备份，以及 `agent.before-*`、`agent.backup-*`、`agent.pre-*` 等升级回滚副本和 `agent.hardening.gz`。这些历史备份命名也支持 `komari-agent` 前缀。所选服务的 `.before-*`、`.pre-*`、`.backup-*`、`.bak` 定义备份，在确认引用当前 Agent 安装路径后也会删除，即使活动服务已经卸载。默认安装的已知 Agent 文件日志也会清理。目录中的主控程序、数据库和其他文件会保留；安装目录为空时才删除目录。遇到服务停止失败、程序仍在运行或目录不匹配等情况，脚本会中止并给出原因。
 
 安装时自定义过服务名或目录的，使用对应参数；服务名需明确指定，脚本只处理选中的服务。目录已能从服务识别时可以省略 `--install-dir`：
 
@@ -127,6 +127,8 @@ sudo sh uninstall-agent.sh \
 ```
 
 `--install-service-name` 是 `--service-name` 的兼容别名；运行 `sh uninstall-agent.sh --help` 查看全部选项。卸载会删除该节点本地保存的自动发现身份和流量统计，面板上的节点记录需在后台另行删除。系统 journal 历史日志会保留。
+
+脚本不会搜索整个文件系统；自行下载到安装目录以外的 Agent 二进制、源码目录，以及 Shell 命令历史需另行核实处理。主控镜像中的 Agent 分发文件、Docker 构建缓存和 1Panel 应用资源不属于节点 Agent 安装文件。
 
 此脚本不处理 Docker Agent、Windows、macOS 或 NixOS。Docker Agent 需移除对应容器并清理其持久化身份文件；Windows、macOS 按各自的服务管理方式卸载；NixOS 需从声明式配置移除服务并重新构建系统。
 

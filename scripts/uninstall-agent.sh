@@ -273,6 +273,29 @@ for extra in "$config_file" "$managed_file"; do
     remove_file "$extra"; remove_file "$extra.tmp"; remove_file "$extra.bak"
 done
 
+# Old deployment procedures also copied service definitions outside install_dir.
+# They can contain credentials. Remove only backups referencing this Agent path.
+cleanup_service_backups() {
+for service_stem do
+    for service_backup in "$service_stem".before-* "$service_stem".pre-* \
+        "$service_stem".backup-* "$service_stem.bak"; do
+        [ -e "$service_backup" ] || [ -L "$service_backup" ] || continue
+        if [ -f "$service_backup" ] && { grep -Fq "$install_dir/agent" "$service_backup" ||
+            grep -Fq "$install_dir/komari-agent" "$service_backup"; }; then
+            remove_file "$service_backup"
+        else
+            info "保留未确认归属的服务备份：$service_backup"
+        fi
+    done
+done
+}
+if [ "$user_mode" = true ]; then
+    cleanup_service_backups "$systemd_dir/$service_name.service"
+else
+    cleanup_service_backups "$systemd_dir/$service_name.service" \
+        "$initd_dir/$service_name" "$upstart_dir/$service_name.conf"
+fi
+
 # Older Linux deployments may have file logs. Preserve unidentified files.
 if [ "$user_mode" = false ] && [ "$install_dir" = "$default_dir" ] && [ "$service_name" = komari-agent ]; then
     if [ -d "$log_dir" ] && [ ! -L "$log_dir" ]; then
